@@ -1,9 +1,7 @@
 'use server'
 
-import serviceModule from '@/lib/data'
+import { bookingService } from '@/lib/data'
 import type { AeroClass, Student } from '@/lib/types'
-
-const bookingService = serviceModule.default ?? serviceModule;
 
 export async function fetchClasses() {
   const allClasses = bookingService.getClasses();
