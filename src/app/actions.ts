@@ -87,6 +87,7 @@ export async function getStudentCsv() {
         phone: b.student.phone,
         bookingDate: b.bookingDate,
         packSize: `${b.packSize} clases`,
+        price: `${b.price}€`,
         classes: b.classes,
     }));
     const headers = {
@@ -95,6 +96,7 @@ export async function getStudentCsv() {
         phone: 'Teléfono',
         bookingDate: 'Fecha de Reserva',
         packSize: 'Bono Seleccionado',
+        price: 'Precio',
         classes: 'Clases Reservadas',
     };
     return convertToCsv(bookings, headers);

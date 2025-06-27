@@ -200,6 +200,7 @@ function AdminDashboard() {
                                     <TableRow>
                                         <TableHead>Nombre</TableHead>
                                         <TableHead>Bono</TableHead>
+                                        <TableHead>Precio</TableHead>
                                         <TableHead className="hidden md:table-cell">Email</TableHead>
                                         <TableHead className="hidden md:table-cell">Teléfono</TableHead>
                                         <TableHead>Clases Reservadas</TableHead>
@@ -211,6 +212,7 @@ function AdminDashboard() {
                                         <TableRow key={booking.id}>
                                             <TableCell className="font-medium">{booking.student.name}</TableCell>
                                             <TableCell>{booking.packSize} clases</TableCell>
+                                            <TableCell>{booking.price}€</TableCell>
                                             <TableCell className="hidden md:table-cell">{booking.student.email}</TableCell>
                                             <TableCell className="hidden md:table-cell">{booking.student.phone}</TableCell>
                                             <TableCell>
@@ -226,7 +228,7 @@ function AdminDashboard() {
                                         </TableRow>
                                     )) : (
                                         <TableRow>
-                                            <TableCell colSpan={6} className="text-center h-24">No hay reservas todavía.</TableCell>
+                                            <TableCell colSpan={7} className="text-center h-24">No hay reservas todavía.</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>

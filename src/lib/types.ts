@@ -20,4 +20,5 @@ export interface Booking {
   classes: AeroClass[];
   bookingDate: Date;
   packSize: number;
+  price: number;
 }

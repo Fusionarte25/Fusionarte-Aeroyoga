@@ -41,9 +41,9 @@ function CustomDay(props: DayProps & {
     <div
       className={cn(
         "relative flex h-full min-h-[110px] w-full flex-col p-1.5 border-t transition-colors",
-        isDayInPast ? "bg-muted/50" : "hover:bg-accent/50",
-        hasClasses && !isDayInPast && "bg-primary/5",
-        isSelectedDay && "bg-accent ring-2 ring-primary z-10"
+        isDayInPast ? "bg-muted/50" : "hover:bg-accent",
+        hasClasses && !isDayInPast && "bg-primary/10",
+        isSelectedDay && "bg-primary/20 ring-2 ring-primary z-10"
       )}
     >
       <time dateTime={date.toISOString()} className={cn("self-start text-sm", isDayInPast && "text-muted-foreground line-through")}>
@@ -54,7 +54,7 @@ function CustomDay(props: DayProps & {
           <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="item-1" className="border-none">
               <AccordionTrigger className="-my-1 p-1 text-xs hover:no-underline justify-center [&[data-state=open]>svg]:hidden [&[data-state=closed]>svg]:hidden">
-                <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary/20 text-primary hover:bg-primary/30">
+                <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/90">
                     {dayClasses.length} {dayClasses.length > 1 ? 'clases' : 'clase'}
                 </div>
               </AccordionTrigger>
@@ -110,9 +110,9 @@ function SuccessScreen({ booking, onNewBooking }: { booking: Booking; onNewBooki
                   </CardDescription>
               </CardHeader>
               <CardContent>
-                  <p className="mb-4 text-muted-foreground">Recibirás un correo de confirmación en <strong className="text-foreground">{booking.student.email}</strong> con los detalles.</p>
+                  <p className="mb-4 text-muted-foreground">Para cualquier duda, puedes contactarnos. No se envían correos de confirmación por el momento.</p>
                   <Separator className="my-6" />
-                  <h3 className="font-semibold text-xl mb-4 text-left">Resumen de tu bono de {booking.packSize} clases:</h3>
+                  <h3 className="font-semibold text-xl mb-4 text-left">Resumen de tu bono de {booking.packSize} clases ({booking.price}€):</h3>
                   <ul className="space-y-3 text-left">
                       {booking.classes.map((cls: AeroClass) => (
                           <li key={cls.id} className="flex items-center justify-between bg-secondary p-3 rounded-lg">
@@ -175,6 +175,10 @@ export function AeroClassManager() {
   }
 
   const handleSelectClass = (classToSelect: AeroClass) => {
+    if (!name || !email || !phone) {
+        toast({ variant: "destructive", title: "Faltan datos", description: "Por favor, completa primero tus datos personales." });
+        return;
+    }
     if (!packSize) {
       toast({ variant: "destructive", title: "¡Uy!", description: "Por favor, selecciona primero un pack de clases." })
       return
@@ -218,7 +222,14 @@ export function AeroClassManager() {
     const result = await createBooking(student, classIds, packSize);
 
     if (result.success && result.booking) {
-        setLastBooking(result.booking);
+        // The booking object in result is not a full Booking object with Date objects
+        // We need to deserialize it.
+        const deserializedBooking = {
+            ...result.booking,
+            bookingDate: new Date(result.booking.bookingDate),
+            classes: result.booking.classes.map((c: any) => ({...c, date: new Date(c.date)}))
+        }
+        setLastBooking(deserializedBooking);
         setBookingState('success');
         
         // Refresh classes data for the next booking
@@ -263,31 +274,8 @@ export function AeroClassManager() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-8">
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Users className="text-primary"/>Paso 1: Elige Tu Bono</CardTitle>
-                <CardDescription>Selecciona un bono mensual para empezar a reservar.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <RadioGroup onValueChange={handleSelectPack} value={packSize?.toString() ?? ''} disabled={bookingState === 'submitting'}>
-                    <div className="flex items-center space-x-2 p-4 rounded-md has-[:checked]:bg-accent has-[:checked]:shadow-inner">
-                        <RadioGroupItem value="4" id="p4" />
-                        <Label htmlFor="p4" className="text-base flex-grow cursor-pointer">4 Clases / mes</Label>
-                    </div>
-                    <div className="flex items-center space-x-2 p-4 rounded-md has-[:checked]:bg-accent has-[:checked]:shadow-inner">
-                        <RadioGroupItem value="8" id="p8" />
-                        <Label htmlFor="p8" className="text-base flex-grow cursor-pointer">8 Clases / mes</Label>
-                    </div>
-                    <div className="flex items-center space-x-2 p-4 rounded-md has-[:checked]:bg-accent has-[:checked]:shadow-inner">
-                        <RadioGroupItem value="12" id="p12" />
-                        <Label htmlFor="p12" className="text-base flex-grow cursor-pointer">12 Clases / mes</Label>
-                    </div>
-                </RadioGroup>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-lg hover:shadow-xl transition-shadow">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><FileText className="text-primary"/>Paso 2: Tus Datos</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><FileText className="text-primary"/>Paso 1: Tus Datos</CardTitle>
                     <CardDescription>Completa tus datos para la reserva.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -305,13 +293,36 @@ export function AeroClassManager() {
                     </div>
                 </CardContent>
             </Card>
+
+            <Card className="shadow-lg hover:shadow-xl transition-shadow">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Users className="text-primary"/>Paso 2: Elige Tu Bono</CardTitle>
+                <CardDescription>Selecciona un bono mensual para empezar a reservar.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RadioGroup onValueChange={handleSelectPack} value={packSize?.toString() ?? ''} disabled={bookingState === 'submitting'}>
+                    <div className="flex items-center space-x-2 p-4 rounded-md has-[:checked]:bg-accent has-[:checked]:shadow-inner">
+                        <RadioGroupItem value="4" id="p4" />
+                        <Label htmlFor="p4" className="text-base flex-grow cursor-pointer">4 Clases / mes - 65€</Label>
+                    </div>
+                    <div className="flex items-center space-x-2 p-4 rounded-md has-[:checked]:bg-accent has-[:checked]:shadow-inner">
+                        <RadioGroupItem value="8" id="p8" />
+                        <Label htmlFor="p8" className="text-base flex-grow cursor-pointer">8 Clases / mes - 110€</Label>
+                    </div>
+                    <div className="flex items-center space-x-2 p-4 rounded-md has-[:checked]:bg-accent has-[:checked]:shadow-inner">
+                        <RadioGroupItem value="12" id="p12" />
+                        <Label htmlFor="p12" className="text-base flex-grow cursor-pointer">12 Clases / mes - 150€</Label>
+                    </div>
+                </RadioGroup>
+              </CardContent>
+            </Card>
         </div>
 
         <div className="lg:col-span-2">
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><CalendarDays className="text-primary"/>Paso 3: Selecciona Clases</CardTitle>
-                    <CardDescription>Haz clic en un día para ver y seleccionar las clases disponibles. Necesitas un bono para poder seleccionar.</CardDescription>
+                    <CardDescription>Haz clic en un día para ver y seleccionar las clases disponibles. Necesitas tus datos y un bono para poder seleccionar.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (
@@ -386,7 +397,7 @@ export function AeroClassManager() {
                     </div>
                 )}
             </CardContent>
-            {packSize && selectedClasses.length > 0 && (
+            {packSize && (
                 <CardFooter>
                     <Button 
                         size="lg" 

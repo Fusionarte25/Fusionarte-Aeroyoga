@@ -3,6 +3,12 @@
 
 import type { AeroClass, Booking, Student } from "@/lib/types";
 
+const PACK_PRICES: { [key: number]: number } = {
+    4: 65,
+    8: 110,
+    12: 150,
+};
+
 const schedule = [
   // Martes
   { day: 2, time: "17:00", name: "Aeroyoga Intermedio", teacher: "Alexandra" },
@@ -104,12 +110,15 @@ class BookingService {
         throw new Error("Una o más clases seleccionadas ya no tienen plazas disponibles. Por favor, revisa tu selección.");
     }
     
+    const price = PACK_PRICES[packSize] || 0;
+
     const newBooking: Booking = {
         id: bookingId,
         student,
         classes: fullClassDetails,
         bookingDate: new Date(),
-        packSize
+        packSize,
+        price,
     };
     
     this.bookings.push(newBooking);
@@ -178,4 +187,14 @@ class BookingService {
   }
 }
 
-export const bookingService = BookingService.getInstance();
+// Singleton implementation to work with Next.js hot-reloading in development
+const globalForBookingService = global as unknown as {
+  bookingService: BookingService | undefined;
+};
+
+export const bookingService =
+  globalForBookingService.bookingService ?? BookingService.getInstance();
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForBookingService.bookingService = bookingService;
+}
