@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react"
 import { DayPicker, DayProps } from "react-day-picker"
+import { es } from "date-fns/locale"
 import { Wind, CalendarDays, Check, List, Trash2, Users } from "lucide-react"
 
 import type { AeroClass } from "@/lib/types"
@@ -18,45 +19,51 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 
 
 // --- Mock Data Generation ---
+const schedule = [
+  // Martes
+  { day: 2, time: "17:00", name: "Aeroyoga Intermedio" },
+  { day: 2, time: "18:00", name: "Aeroyoga Principiante" },
+  // Miércoles
+  { day: 3, time: "08:15", name: "Aeroyoga Principiantes" },
+  { day: 3, time: "17:00", name: "Aeroyoga Principiante" },
+  { day: 3, time: "18:00", name: "Aeroyoga Intermedio" },
+  // Jueves
+  { day: 4, time: "17:00", name: "Aeroyoga Mixto" },
+  // Sábado
+  { day: 6, time: "10:00", name: "Aeroyoga Intermedio" },
+];
+
 const generateMockClasses = (month: Date): AeroClass[] => {
-  const classes: AeroClass[] = []
-  const year = month.getFullYear()
-  const monthIndex = month.getMonth()
-  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate()
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+  const classes: AeroClass[] = [];
+  const year = month.getFullYear();
+  const monthIndex = month.getMonth();
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(year, monthIndex, day)
-    if (date.getDay() === 0 || date.getDay() === 6) continue // Skip weekends
+    const date = new Date(year, monthIndex, day);
+    if (date < today) continue;
 
-    if (date < today) continue // Skip past dates for new bookings
+    const dayOfWeek = date.getDay();
 
-    // Morning class
-    if (Math.random() > 0.3) {
-      const bookedSpots = Math.floor(Math.random() * 11)
-      classes.push({
-        id: `class-${year}-${monthIndex}-${day}-am`,
-        date,
-        time: "09:00",
-        totalSpots: 10,
-        bookedSpots,
-      })
-    }
-    // Evening class
-    if (Math.random() > 0.3) {
-      const bookedSpots = Math.floor(Math.random() * 11)
-      classes.push({
-        id: `class-${year}-${monthIndex}-${day}-pm`,
-        date,
-        time: "18:30",
-        totalSpots: 10,
-        bookedSpots,
-      })
-    }
+    schedule.forEach(scheduledClass => {
+      if (dayOfWeek === scheduledClass.day) {
+        const bookedSpots = Math.floor(Math.random() * 11);
+        classes.push({
+          id: `class-${year}-${monthIndex}-${day}-${scheduledClass.time.replace(':', '')}`,
+          name: scheduledClass.name,
+          date,
+          time: scheduledClass.time,
+          totalSpots: 10,
+          bookedSpots,
+        });
+      }
+    });
   }
-  return classes
-}
+  return classes;
+};
+
 
 // --- Custom Day Component for Calendar ---
 function CustomDay(props: DayProps & {
@@ -84,7 +91,7 @@ function CustomDay(props: DayProps & {
          <Accordion type="single" collapsible className="w-full -my-1">
           <AccordionItem value="item-1" className="border-none">
             <AccordionTrigger className="p-1 text-xs hover:no-underline justify-center [&[data-state=open]>svg]:hidden [&[data-state=closed]>svg]:hidden">
-              <span className="font-normal">{dayClasses.length} classes</span>
+              <span className="font-normal">{dayClasses.length} clases</span>
             </AccordionTrigger>
             <AccordionContent className="space-y-1 pb-1">
               {dayClasses.map(cls => {
@@ -105,10 +112,13 @@ function CustomDay(props: DayProps & {
                       isDisabled && "opacity-50 cursor-not-allowed bg-secondary"
                     )}
                   >
-                    <p className="font-semibold">{cls.time}</p>
+                    <p className="font-semibold">{cls.name}</p>
                     <div className="flex justify-between items-center">
-                      <p>Spots: {remaining > 0 ? `${remaining} left` : "Full"}</p>
-                      {isSelected && <Check className="w-4 h-4" />}
+                      <p>{cls.time}</p>
+                      <div className="flex items-center gap-1">
+                        <p>{remaining > 0 ? `${remaining} libres` : "Completo"}</p>
+                        {isSelected && <Check className="w-4 h-4" />}
+                      </div>
                     </div>
                   </button>
                 )
@@ -149,15 +159,15 @@ export function AeroClassManager() {
     if (selectedClasses.length > newPackSize) {
         setSelectedClasses(selectedClasses.slice(0, newPackSize))
         toast({
-            title: "Selection updated",
-            description: "Your class selection has been shortened to fit the new pack size.",
+            title: "Selección actualizada",
+            description: "Tu selección de clases se ha acortado para ajustarse al nuevo tamaño del pack.",
         })
     }
   }
 
   const handleSelectClass = (classToSelect: AeroClass) => {
     if (!packSize) {
-      toast({ variant: "destructive", title: "Oops!", description: "Please select a class pack first." })
+      toast({ variant: "destructive", title: "¡Uy!", description: "Por favor, selecciona primero un pack de clases." })
       return
     }
     const isSelected = selectedClasses.some(c => c.id === classToSelect.id)
@@ -168,7 +178,7 @@ export function AeroClassManager() {
     }
 
     if (selectedClasses.length >= packSize) {
-      toast({ variant: "destructive", title: "Limit Reached", description: `You can only select up to ${packSize} classes.` })
+      toast({ variant: "destructive", title: "Límite Alcanzado", description: `Solo puedes seleccionar hasta ${packSize} clases.` })
       return
     }
 
@@ -181,14 +191,14 @@ export function AeroClassManager() {
   
   const handleConfirmBooking = () => {
     if (selectedClasses.length === 0) {
-        toast({ variant: "destructive", title: "No classes selected", description: "Please select at least one class to book." })
+        toast({ variant: "destructive", title: "No hay clases seleccionadas", description: "Por favor, selecciona al menos una clase para reservar." })
         return
     }
     // In a real app, this would trigger an API call
     toast({
-        title: "Booking Confirmed!",
-        description: `You have successfully booked ${selectedClasses.length} classes.`,
-        action: <Button variant="outline" size="sm">View</Button>
+        title: "¡Reserva Confirmada!",
+        description: `Has reservado con éxito ${selectedClasses.length} clases.`,
+        action: <Button variant="outline" size="sm">Ver</Button>
     })
     
     // Reset state after booking
@@ -209,8 +219,8 @@ export function AeroClassManager() {
     <div className="space-y-6">
       <header className="flex flex-col items-center text-center">
         <Wind className="w-12 h-12 text-primary" />
-        <h1 className="font-headline text-4xl font-bold mt-2">AeroClass Manager</h1>
-        <p className="text-muted-foreground mt-1">Select your pack, choose your classes, and get ready to fly.</p>
+        <h1 className="font-headline text-4xl font-bold mt-2">Fusionarte</h1>
+        <p className="text-muted-foreground mt-1">Selecciona tu pack, elige tus clases y prepárate para volar.</p>
       </header>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8 space-y-8 lg:space-y-0">
@@ -218,22 +228,22 @@ export function AeroClassManager() {
             {/* --- Pack Selector --- */}
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Users className="text-primary"/>Choose Your Plan</CardTitle>
-                <CardDescription>Select a monthly pack to start booking.</CardDescription>
+                <CardTitle className="flex items-center gap-2"><Users className="text-primary"/>Elige Tu Plan</CardTitle>
+                <CardDescription>Selecciona un pack mensual para empezar a reservar.</CardDescription>
               </CardHeader>
               <CardContent>
                 <RadioGroup onValueChange={handleSelectPack} value={packSize?.toString()}>
                     <div className="flex items-center space-x-2 p-4 rounded-md has-[:checked]:bg-accent has-[:checked]:shadow-inner">
                         <RadioGroupItem value="4" id="p4" />
-                        <Label htmlFor="p4" className="text-base flex-grow cursor-pointer">4 Classes / month</Label>
+                        <Label htmlFor="p4" className="text-base flex-grow cursor-pointer">4 Clases / mes</Label>
                     </div>
                     <div className="flex items-center space-x-2 p-4 rounded-md has-[:checked]:bg-accent has-[:checked]:shadow-inner">
                         <RadioGroupItem value="8" id="p8" />
-                        <Label htmlFor="p8" className="text-base flex-grow cursor-pointer">8 Classes / month</Label>
+                        <Label htmlFor="p8" className="text-base flex-grow cursor-pointer">8 Clases / mes</Label>
                     </div>
                     <div className="flex items-center space-x-2 p-4 rounded-md has-[:checked]:bg-accent has-[:checked]:shadow-inner">
                         <RadioGroupItem value="12" id="p12" />
-                        <Label htmlFor="p12" className="text-base flex-grow cursor-pointer">12 Classes / month</Label>
+                        <Label htmlFor="p12" className="text-base flex-grow cursor-pointer">12 Clases / mes</Label>
                     </div>
                 </RadioGroup>
               </CardContent>
@@ -242,10 +252,10 @@ export function AeroClassManager() {
             {/* --- Selected Classes --- */}
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><List className="text-primary"/>Your Selections</CardTitle>
+                  <CardTitle className="flex items-center gap-2"><List className="text-primary"/>Tus Selecciones</CardTitle>
                   {packSize !== null && (
                       <CardDescription>
-                          You can book <span className="font-bold text-primary">{remainingSlots}</span> more classes.
+                          Puedes reservar <span className="font-bold text-primary">{remainingSlots}</span> clases más.
                       </CardDescription>
                   )}
                 </CardHeader>
@@ -255,19 +265,19 @@ export function AeroClassManager() {
                            {selectedClasses.map(cls => (
                                <li key={cls.id} className="flex items-center justify-between bg-secondary p-3 rounded-lg animate-in fade-in-20">
                                    <div>
-                                       <p className="font-semibold">{cls.date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-                                       <p className="text-sm text-muted-foreground">at {cls.time}</p>
+                                       <p className="font-semibold">{cls.date.toLocaleDateString('es-ES', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                                       <p className="text-sm text-muted-foreground">a las {cls.time}</p>
                                    </div>
                                    <Button variant="ghost" size="icon" onClick={() => handleRemoveClass(cls.id)} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full h-8 w-8">
                                        <Trash2 className="h-4 w-4"/>
-                                       <span className="sr-only">Remove</span>
+                                       <span className="sr-only">Quitar</span>
                                    </Button>
                                </li>
                            ))}
                         </ul>
                     ) : (
                         <div className="text-center text-muted-foreground py-8">
-                            <p>Your selected classes will appear here.</p>
+                            <p>Tus clases seleccionadas aparecerán aquí.</p>
                         </div>
                     )}
                 </CardContent>
@@ -279,7 +289,7 @@ export function AeroClassManager() {
                         disabled={selectedClasses.length === 0}
                     >
                         <Check className="mr-2 h-5 w-5"/>
-                        Confirm Booking ({selectedClasses.length})
+                        Confirmar Reserva ({selectedClasses.length})
                     </Button>
                 </CardFooter>
             </Card>
@@ -289,11 +299,12 @@ export function AeroClassManager() {
         <div className="lg:col-span-2">
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><CalendarDays className="text-primary"/>Available Classes</CardTitle>
-                    <CardDescription>Click on a day to see and select available classes.</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><CalendarDays className="text-primary"/>Clases Disponibles</CardTitle>
+                    <CardDescription>Haz clic en un día para ver y seleccionar las clases disponibles.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Calendar
+                        locale={es}
                         mode="single"
                         month={currentMonth}
                         onMonthChange={setCurrentMonth}
