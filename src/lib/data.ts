@@ -34,10 +34,7 @@ const generateMockClasses = (month: Date): AeroClass[] => {
     const dayOfWeek = date.getDay(); // 0 = Domingo, 1 = Lunes, ... , 6 = Sábado
 
     schedule.forEach(scheduledClass => {
-      // Ajuste: si getDay() devuelve 0 (Domingo), lo mapeamos a 7 para que coincida con una posible lógica de 1-7
-      const effectiveDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
-      
-      if (effectiveDayOfWeek === scheduledClass.day) {
+      if (dayOfWeek === scheduledClass.day) {
         classes.push({
           id: `class-${year}-${monthIndex + 1}-${day}-${scheduledClass.time.replace(':', '')}`,
           name: scheduledClass.name,

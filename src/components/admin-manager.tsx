@@ -394,7 +394,9 @@ function AdminDashboard() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {classesWithAttendees.filter(cwa => new Date(cwa.classDetails.date) > new Date(Date.now() - 86400000)).map(({ classDetails }) => (
+                                    {allClasses
+                                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                        .map((classDetails) => (
                                         <TableRow key={classDetails.id}>
                                             <TableCell className="font-medium">{classDetails.name}</TableCell>
                                             <TableCell>{new Date(classDetails.date).toLocaleDateString('es-ES')} - {classDetails.time}</TableCell>

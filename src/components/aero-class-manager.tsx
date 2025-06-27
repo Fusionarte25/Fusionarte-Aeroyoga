@@ -225,7 +225,7 @@ export function AeroClassManager() {
         }
     }
     loadInitialData();
-  }, [toast])
+  }, [])
 
   const handleSelectPack = (value: string) => {
     const newPackSize = parseInt(value, 10)
