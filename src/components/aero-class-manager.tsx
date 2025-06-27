@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react"
 import { DayPicker, DayProps } from "react-day-picker"
 import { es } from "date-fns/locale"
-import { Wind, CalendarDays, Check, List, Trash2, Users, FileText, CheckCircle2, CalendarCheck, Loader2 } from "lucide-react"
+import { Wind, CalendarDays, Check, List, Trash2, Users, FileText, CheckCircle2, CalendarCheck, Loader2, Download } from "lucide-react"
 
 import type { AeroClass, Booking } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -106,6 +106,43 @@ function CustomDay(props: DayProps & {
 
 // --- Success Screen Component ---
 function SuccessScreen({ booking, onNewBooking }: { booking: Booking; onNewBooking: () => void }) {
+  const handleDownloadReceipt = () => {
+    const receiptContent = `
+Resumen de Reserva - Fusionarte
+
+Gracias por tu reserva, ${booking.student.name}.
+
+-----------------------------------------
+Detalles de la Reserva
+-----------------------------------------
+ID de Reserva: ${booking.id}
+Fecha de Reserva: ${new Date(booking.bookingDate).toLocaleString('es-ES')}
+Bono: ${booking.packSize} clases
+Precio Total: ${booking.price}€
+
+-----------------------------------------
+Clases Seleccionadas
+-----------------------------------------
+${booking.classes.map(cls => 
+  `· ${cls.name} - ${new Date(cls.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} a las ${cls.time}`
+).join('\n')}
+
+-----------------------------------------
+Para cualquier duda, puedes contactarnos.
+¡Nos vemos en clase!
+    `;
+
+    const blob = new Blob([receiptContent.trim()], { type: 'text/plain;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `comprobante-fusionarte-${booking.student.name.replace(/\s/g, '_')}.txt`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
       <div className="flex flex-col items-center justify-center text-center py-10 sm:py-16">
           <Card className="w-full max-w-2xl p-6 sm:p-8 shadow-lg animate-in fade-in-50 zoom-in-95">
@@ -132,8 +169,11 @@ function SuccessScreen({ booking, onNewBooking }: { booking: Booking; onNewBooki
                       ))}
                   </ul>
               </CardContent>
-              <CardFooter>
-                  <Button size="lg" className="w-full text-lg mt-4" onClick={onNewBooking}>
+              <CardFooter className="flex-col sm:flex-row gap-4">
+                  <Button size="lg" className="w-full text-lg" onClick={handleDownloadReceipt} variant="outline">
+                      <Download className="mr-2 h-5 w-5"/> Descargar Comprobante
+                  </Button>
+                  <Button size="lg" className="w-full text-lg mt-4 sm:mt-0" onClick={onNewBooking}>
                       Hacer una nueva reserva
                   </Button>
               </CardFooter>
@@ -162,21 +202,30 @@ export function AeroClassManager() {
   useEffect(() => {
     const loadInitialData = async () => {
         setIsLoading(true);
-        const [fetchedClasses, fetchedMonth] = await Promise.all([
-            fetchClasses(),
-            getActiveBookingMonth()
-        ]);
-        const classesWithDates = fetchedClasses.map(c => ({...c, date: new Date(c.date)}));
-        setClasses(classesWithDates);
-        
-        const activeMonthDate = new Date(fetchedMonth);
-        setActiveBookingMonth(activeMonthDate);
-        setCurrentMonth(activeMonthDate);
-        
-        setIsLoading(false);
+        try {
+            const [fetchedClasses, fetchedMonth] = await Promise.all([
+                fetchClasses(),
+                getActiveBookingMonth()
+            ]);
+            const classesWithDates = fetchedClasses.map(c => ({...c, date: new Date(c.date)}));
+            setClasses(classesWithDates);
+            
+            const activeMonthDate = new Date(fetchedMonth);
+            setActiveBookingMonth(activeMonthDate);
+            setCurrentMonth(activeMonthDate);
+        } catch (error) {
+            console.error("Failed to load initial data", error);
+            toast({
+                variant: "destructive",
+                title: "Error al cargar",
+                description: "No se pudieron cargar los datos de las clases. Refresca la página."
+            });
+        } finally {
+            setIsLoading(false);
+        }
     }
     loadInitialData();
-  }, [])
+  }, [toast])
 
   const handleSelectPack = (value: string) => {
     const newPackSize = parseInt(value, 10)

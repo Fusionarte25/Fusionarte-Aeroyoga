@@ -15,12 +15,14 @@ export async function fetchClasses() {
 }
 
 export async function getActiveBookingMonth() {
-    return bookingService.getActiveBookingMonth();
+    // Return as ISO string for safe serialization across server/client boundary
+    return bookingService.getActiveBookingMonth().toISOString();
 }
 
 export async function setActiveBookingMonth(year: number, month: number) {
     bookingService.setActiveBookingMonth(year, month);
-    return bookingService.getActiveBookingMonth();
+    // Return as ISO string for safe serialization
+    return bookingService.getActiveBookingMonth().toISOString();
 }
 
 export async function createBooking(student: Student, selectedClasses: Pick<AeroClass, 'id'>[], packSize: number) {
