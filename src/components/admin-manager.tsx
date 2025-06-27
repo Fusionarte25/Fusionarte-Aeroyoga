@@ -155,26 +155,36 @@ function AdminDashboard() {
 
     const loadData = useCallback(async () => {
         setIsLoading(true);
-        const [data, month] = await Promise.all([fetchAdminData(), getActiveBookingMonth()]);
-        
-        const deserializedBookings = data.bookings.map((b: any) => ({
-            ...b,
-            bookingDate: new Date(b.bookingDate),
-            classes: b.classes.map((c: any) => ({...c, date: new Date(c.date)}))
-        }));
-        const deserializedClasses = data.classesWithAttendees.map((c: any) => ({
-            ...c,
-            classDetails: {
-                ...c.classDetails,
-                date: new Date(c.classDetails.date)
-            }
-        }));
+        try {
+            const [data, month] = await Promise.all([fetchAdminData(), getActiveBookingMonth()]);
+            
+            const deserializedBookings = data.bookings.map((b: any) => ({
+                ...b,
+                bookingDate: new Date(b.bookingDate),
+                classes: b.classes.map((c: any) => ({...c, date: new Date(c.date)}))
+            }));
+            const deserializedClasses = data.classesWithAttendees.map((c: any) => ({
+                ...c,
+                classDetails: {
+                    ...c.classDetails,
+                    date: new Date(c.classDetails.date)
+                }
+            }));
 
-        setBookings(deserializedBookings);
-        setClassesWithAttendees(deserializedClasses);
-        setActiveMonth(new Date(month));
-        setIsLoading(false);
-    }, []);
+            setBookings(deserializedBookings);
+            setClassesWithAttendees(deserializedClasses);
+            setActiveMonth(new Date(month));
+        } catch (error) {
+            console.error("Failed to load admin data", error);
+            toast({
+                variant: "destructive",
+                title: "Error al cargar datos",
+                description: "No se pudieron cargar los datos del panel de administrador."
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    }, [toast]);
 
     useEffect(() => {
         loadData();
@@ -345,7 +355,7 @@ function AdminDashboard() {
                     <Card>
                         <CardHeader><CardTitle>Listado de Asistencia por Clase</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
-                            {classesWithAttendees.length > 0 ? classesWithAttendees.filter(c=> c.attendees.length > 0).map(({ classDetails, attendees }) => (
+                            {classesWithAttendees.length > 0 ? classesWithAttendees.map(({ classDetails, attendees }) => (
                                 <Card key={classDetails.id}>
                                     <CardHeader>
                                         <CardTitle>{classDetails.name} - {new Date(classDetails.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} a las {classDetails.time}</CardTitle>
