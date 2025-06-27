@@ -28,15 +28,9 @@ const generateMockClasses = (month: Date): AeroClass[] => {
   const year = month.getFullYear();
   const monthIndex = month.getMonth();
   const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
+  
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(year, monthIndex, day);
-    // We don't generate classes for past days, but we keep the logic here
-    // in case it's needed for historical views. In the UI, we'll prevent selection.
-    // if (date < today) continue; 
-
     const dayOfWeek = date.getDay();
 
     schedule.forEach(scheduledClass => {
@@ -61,14 +55,18 @@ class BookingService {
   private classes: AeroClass[] = [];
   private bookings: Booking[] = [];
   private static instance: BookingService;
+  private activeBookingMonth: Date;
 
   private constructor() {
-    const thisMonth = new Date();
-    const nextMonth = new Date(thisMonth.getFullYear(), thisMonth.getMonth() + 1, 1);
-    this.classes = [
-        ...generateMockClasses(thisMonth),
-        ...generateMockClasses(nextMonth)
-    ];
+    const today = new Date();
+    this.activeBookingMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    // Generate classes for a few months around today to have data available
+    const classMonths = [-1, 0, 1, 2, 3, 4, 5, 6].map(offset => {
+      return new Date(today.getFullYear(), today.getMonth() + offset, 1);
+    });
+
+    this.classes = classMonths.flatMap(month => generateMockClasses(month));
   }
 
   public static getInstance(): BookingService {
@@ -78,22 +76,33 @@ class BookingService {
     return BookingService.instance;
   }
 
+  getActiveBookingMonth(): Date {
+      return this.activeBookingMonth;
+  }
+
+  setActiveBookingMonth(year: number, month: number): Date {
+      this.activeBookingMonth = new Date(year, month, 1);
+      return this.activeBookingMonth;
+  }
+
   getClasses(): AeroClass[] {
     return JSON.parse(JSON.stringify(this.classes.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())));
   }
 
   getBookings(): Booking[] {
-    return JSON.parse(JSON.stringify(this.bookings));
+    return JSON.parse(JSON.stringify(this.bookings.sort((a, b) => new Date(b.bookingDate).getTime() - new Date(a.bookingDate).getTime())));
   }
   
   addBooking(student: Student, selectedClasses: Pick<AeroClass, 'id'>[], packSize: number): Booking {
     const bookingId = `booking-${Date.now()}-${Math.random()}`;
     const fullClassDetails: AeroClass[] = [];
+    const bookedClassIndexes: number[] = [];
 
     selectedClasses.forEach(selectedClass => {
         const classIndex = this.classes.findIndex(c => c.id === selectedClass.id);
         if (classIndex !== -1 && this.classes[classIndex].bookedSpots < this.classes[classIndex].totalSpots) {
             this.classes[classIndex].bookedSpots++;
+            bookedClassIndexes.push(classIndex);
             fullClassDetails.push(this.classes[classIndex]);
         } else {
             console.warn(`Class ${selectedClass.id} is full or does not exist.`);
@@ -101,11 +110,9 @@ class BookingService {
     });
 
     if (fullClassDetails.length !== selectedClasses.length) {
-        fullClassDetails.forEach(bookedClass => {
-            const classIndex = this.classes.findIndex(c => c.id === bookedClass.id);
-            if (classIndex !== -1) {
-                this.classes[classIndex].bookedSpots--;
-            }
+        // Revert booking spots
+        bookedClassIndexes.forEach(classIndex => {
+            this.classes[classIndex].bookedSpots--;
         });
         throw new Error("Una o más clases seleccionadas ya no tienen plazas disponibles. Por favor, revisa tu selección.");
     }
@@ -124,26 +131,71 @@ class BookingService {
     this.bookings.push(newBooking);
     return newBooking;
   }
+
+  updateBookingClasses(bookingId: string, newSelectedClassIds: Pick<AeroClass, 'id'>[]): Booking {
+      const bookingIndex = this.bookings.findIndex(b => b.id === bookingId);
+      if (bookingIndex === -1) throw new Error("Reserva no encontrada");
+
+      const booking = this.bookings[bookingIndex];
+      
+      if (newSelectedClassIds.length !== booking.packSize) {
+          throw new Error(`La selección debe ser de ${booking.packSize} clases.`);
+      }
+
+      const oldClassIds = booking.classes.map(c => c.id);
+      const newIds = newSelectedClassIds.map(c => c.id);
+
+      const spotChanges: Record<string, number> = {};
+      oldClassIds.forEach(id => { spotChanges[id] = (spotChanges[id] || 0) - 1; });
+      newIds.forEach(id => { spotChanges[id] = (spotChanges[id] || 0) + 1; });
+
+      for (const classId in spotChanges) {
+          if (spotChanges[classId] > 0) { // Only check for increments
+              const classToBook = this.classes.find(c => c.id === classId);
+              if (!classToBook) throw new Error(`Clase con ID ${classId} no encontrada.`);
+              if ((classToBook.bookedSpots + spotChanges[classId]) > classToBook.totalSpots) {
+                  throw new Error(`La clase ${classToBook.name} no tiene suficientes plazas.`);
+              }
+          }
+      }
+
+      const newFullClassDetails: AeroClass[] = [];
+      newIds.forEach(id => {
+          const cls = this.classes.find(c => c.id === id);
+          if (cls) newFullClassDetails.push(cls);
+      });
+      if(newFullClassDetails.length !== newIds.length) {
+        throw new Error("Una o más de las clases seleccionadas no se encontraron.");
+      }
+      
+      for (const classId in spotChanges) {
+          const classIndex = this.classes.findIndex(c => c.id === classId);
+          if (classIndex !== -1) {
+              this.classes[classIndex].bookedSpots += spotChanges[classId];
+          }
+      }
+      
+      booking.classes = newFullClassDetails.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      this.bookings[bookingIndex] = booking;
+
+      return booking;
+  }
   
   getClassesWithAttendees() {
     const classMap = new Map<string, { classDetails: AeroClass; attendees: Student[] }>();
 
+    // Initialize map with all classes to show empty ones too
+    this.classes.forEach(cls => {
+         classMap.set(cls.id, { classDetails: cls, attendees: [] });
+    });
+    
+    // Populate with attendees from bookings
     this.bookings.forEach(booking => {
         booking.classes.forEach(cls => {
-            const currentClassDetails = this.classes.find(c => c.id === cls.id);
-            if (!currentClassDetails) return;
-
-            if (!classMap.has(cls.id)) {
-                classMap.set(cls.id, { classDetails: currentClassDetails, attendees: [] });
+            if (classMap.has(cls.id)) {
+                classMap.get(cls.id)!.attendees.push(booking.student);
             }
-            classMap.get(cls.id)!.attendees.push(booking.student);
         });
-    });
-
-    this.classes.forEach(cls => {
-        if (!classMap.has(cls.id)) {
-             classMap.set(cls.id, { classDetails: cls, attendees: [] });
-        }
     });
 
     return Array.from(classMap.values()).sort((a,b) => new Date(a.classDetails.date).getTime() - new Date(b.classDetails.date).getTime());

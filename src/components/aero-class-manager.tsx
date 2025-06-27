@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { createBooking, fetchClasses } from "@/app/actions"
+import { createBooking, fetchClasses, getActiveBookingMonth } from "@/app/actions"
 
 // --- Custom Day Component for Calendar ---
 function CustomDay(props: DayProps & {
@@ -146,20 +146,29 @@ export function AeroClassManager() {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [classes, setClasses] = useState<AeroClass[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [activeBookingMonth, setActiveBookingMonth] = useState<Date | null>(null);
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const { toast } = useToast()
 
   useEffect(() => {
-    const loadClasses = async () => {
+    const loadInitialData = async () => {
         setIsLoading(true);
-        const fetchedClasses = await fetchClasses();
+        const [fetchedClasses, fetchedMonth] = await Promise.all([
+            fetchClasses(),
+            getActiveBookingMonth()
+        ]);
         const classesWithDates = fetchedClasses.map(c => ({...c, date: new Date(c.date)}));
         setClasses(classesWithDates);
+        
+        const activeMonthDate = new Date(fetchedMonth);
+        setActiveBookingMonth(activeMonthDate);
+        setCurrentMonth(activeMonthDate);
+        
         setIsLoading(false);
     }
-    loadClasses();
+    loadInitialData();
   }, [])
 
   const handleSelectPack = (value: string) => {
@@ -222,8 +231,6 @@ export function AeroClassManager() {
     const result = await createBooking(student, classIds, packSize);
 
     if (result.success && result.booking) {
-        // The booking object in result is not a full Booking object with Date objects
-        // We need to deserialize it.
         const deserializedBooking = {
             ...result.booking,
             bookingDate: new Date(result.booking.bookingDate),
@@ -232,7 +239,6 @@ export function AeroClassManager() {
         setLastBooking(deserializedBooking);
         setBookingState('success');
         
-        // Refresh classes data for the next booking
         const fetchedClasses = await fetchClasses();
         const classesWithDates = fetchedClasses.map(c => ({...c, date: new Date(c.date)}));
         setClasses(classesWithDates);
@@ -322,10 +328,17 @@ export function AeroClassManager() {
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><CalendarDays className="text-primary"/>Paso 3: Selecciona Clases</CardTitle>
-                    <CardDescription>Haz clic en un día para ver y seleccionar las clases disponibles. Necesitas tus datos y un bono para poder seleccionar.</CardDescription>
+                    {activeBookingMonth ? (
+                        <CardDescription>
+                            Mes de inscripción: <span className="font-semibold text-primary">{activeBookingMonth.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}</span>.
+                            Necesitas tus datos y un bono para poder seleccionar.
+                        </CardDescription>
+                    ) : (
+                        <CardDescription>Cargando calendario...</CardDescription>
+                    )}
                 </CardHeader>
                 <CardContent>
-                    {isLoading ? (
+                    {isLoading || !activeBookingMonth ? (
                          <div className="flex justify-center items-center min-h-[300px]">
                             <Skeleton className="h-[450px] w-full" />
                          </div>
@@ -335,6 +348,8 @@ export function AeroClassManager() {
                             mode="single"
                             month={currentMonth}
                             onMonthChange={setCurrentMonth}
+                            fromMonth={activeBookingMonth}
+                            toMonth={activeBookingMonth}
                             onDayClick={() => {}}
                             components={{ Day: (props: DayProps) => (
                               <CustomDay 
@@ -353,6 +368,10 @@ export function AeroClassManager() {
                               row: "flex w-full mt-2",
                               cell: "w-full text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
                               day: "w-full h-full",
+                              caption_label: "text-lg font-bold",
+                              nav_button: cn(
+                                "h-8 w-8 bg-transparent p-0 opacity-70 hover:opacity-100"
+                              ),
                             }}
                             disabled={bookingState === 'submitting'}
                         />

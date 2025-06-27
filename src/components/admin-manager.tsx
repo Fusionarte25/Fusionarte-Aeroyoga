@@ -1,8 +1,8 @@
 "use client"
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Download, Lock, LogIn, PlusCircle, Edit, Trash2 } from 'lucide-react';
-import { addClass, deleteClass, fetchAdminData, getClassCsv, getStudentCsv, updateClass } from '@/app/actions';
+import { Download, Lock, LogIn, PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { addClass, deleteClass, fetchAdminData, getActiveBookingMonth, getClassCsv, getStudentCsv, setActiveBookingMonth, updateClass, updateBookingClasses } from '@/app/actions';
 import type { AeroClass, Booking } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type ClassWithAttendees = {
     classDetails: AeroClass;
@@ -77,6 +78,66 @@ function ClassForm({ classData, onSave, onCancel }: {
     )
 }
 
+function EditBookingForm({ booking, allClasses, onSave, onCancel }: {
+    booking: Booking;
+    allClasses: AeroClass[];
+    onSave: (bookingId: string, newClassIds: {id: string}[]) => void;
+    onCancel: () => void;
+}) {
+    const [selectedClassIds, setSelectedClassIds] = useState(booking.classes.map(c => c.id));
+    
+    const handleClassChange = (index: number, newClassId: string) => {
+        const newSelection = [...selectedClassIds];
+        newSelection[index] = newClassId;
+        setSelectedClassIds(newSelection);
+    }
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSave(booking.id, selectedClassIds.map(id => ({id})));
+    }
+    
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    
+    const availableClasses = allClasses
+        .filter(c => new Date(c.date) >= today)
+        .filter(c => (c.totalSpots - c.bookedSpots > 0) || selectedClassIds.includes(c.id));
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+            <DialogDescription>
+                Editando la reserva de <span className="font-bold text-primary">{booking.student.name}</span> para el bono de {booking.packSize} clases.
+            </DialogDescription>
+            <div className="space-y-3 max-h-[400px] overflow-y-auto p-1">
+                {Array.from({ length: booking.packSize }).map((_, index) => {
+                    const classId = selectedClassIds[index];
+                    return (
+                        <div key={index} className="space-y-2">
+                            <Label>Clase {index + 1}</Label>
+                            <Select onValueChange={(newId) => handleClassChange(index, newId)} defaultValue={classId}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Selecciona una clase" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {availableClasses.map(cls => (
+                                        <SelectItem key={cls.id} value={cls.id} disabled={selectedClassIds.includes(cls.id) && cls.id !== classId}>
+                                            {cls.name} - {new Date(cls.date).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit'})} {cls.time} ({cls.totalSpots - cls.bookedSpots} libres)
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    );
+                })}
+            </div>
+            <DialogFooter>
+                <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
+                <Button type="submit">Guardar Cambios</Button>
+            </DialogFooter>
+        </form>
+    )
+}
 
 function AdminDashboard() {
     const [bookings, setBookings] = useState<Booking[]>([]);
@@ -88,30 +149,44 @@ function AdminDashboard() {
     const [isClassModalOpen, setIsClassModalOpen] = useState(false);
     const [editingClass, setEditingClass] = useState<AeroClass | null>(null);
     const [classToDelete, setClassToDelete] = useState<AeroClass | null>(null);
+    const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+    const [activeMonth, setActiveMonth] = useState<Date | null>(null);
+
 
     const loadData = useCallback(async () => {
         setIsLoading(true);
-        const data = await fetchAdminData();
-        const deserializedBookings = data.bookings.map((b: Booking) => ({
+        const [data, month] = await Promise.all([fetchAdminData(), getActiveBookingMonth()]);
+        
+        const deserializedBookings = data.bookings.map((b: any) => ({
             ...b,
             bookingDate: new Date(b.bookingDate),
-            classes: b.classes.map(c => ({...c, date: new Date(c.date)}))
+            classes: b.classes.map((c: any) => ({...c, date: new Date(c.date)}))
         }));
-        const deserializedClasses = data.classesWithAttendees.map((c: ClassWithAttendees) => ({
+        const deserializedClasses = data.classesWithAttendees.map((c: any) => ({
             ...c,
             classDetails: {
                 ...c.classDetails,
                 date: new Date(c.classDetails.date)
             }
         }));
+
         setBookings(deserializedBookings);
         setClassesWithAttendees(deserializedClasses);
+        setActiveMonth(new Date(month));
         setIsLoading(false);
     }, []);
 
     useEffect(() => {
         loadData();
     }, [loadData]);
+
+    const handleMonthChange = async (offset: number) => {
+        if (!activeMonth) return;
+        const newMonthDate = new Date(activeMonth.getFullYear(), activeMonth.getMonth() + offset, 1);
+        await setActiveBookingMonth(newMonthDate.getFullYear(), newMonthDate.getMonth());
+        setActiveMonth(newMonthDate);
+        toast({ title: "Mes actualizado", description: `Ahora las alumnas reservarán para ${newMonthDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}.` });
+    };
 
     const handleOpenAddModal = () => {
         setEditingClass(null);
@@ -150,6 +225,17 @@ function AdminDashboard() {
             setClassToDelete(null);
         }
     };
+    
+    const handleSaveBookingChanges = async (bookingId: string, newClassIds: {id: string}[]) => {
+        const result = await updateBookingClasses(bookingId, newClassIds);
+        if (result.success) {
+            toast({ title: "¡Éxito!", description: "La reserva se ha actualizado correctamente." });
+            setEditingBooking(null);
+            loadData();
+        } else {
+            toast({ variant: "destructive", title: "Error", description: result.error });
+        }
+    };
 
     const handleExport = async () => {
         if (activeTab !== 'students' && activeTab !== 'classes') return;
@@ -175,6 +261,25 @@ function AdminDashboard() {
 
     return (
         <>
+            <Card className="mb-6">
+                <CardHeader>
+                    <CardTitle>Gestión de Inscripciones</CardTitle>
+                    <CardDescription>Selecciona el mes en el que las alumnas pueden realizar sus reservas.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex items-center gap-4">
+                        <h3 className="text-sm font-semibold">Mes de Reservas Activo:</h3>
+                        {activeMonth && (
+                            <div className="flex items-center gap-2">
+                                <Button size="icon" variant="outline" onClick={() => handleMonthChange(-1)}><ChevronLeft className="h-4 w-4" /></Button>
+                                <span className="font-bold text-lg text-primary w-48 text-center">{activeMonth.toLocaleString('es-ES', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}</span>
+                                <Button size="icon" variant="outline" onClick={() => handleMonthChange(1)}><ChevronRight className="h-4 w-4" /></Button>
+                            </div>
+                        )}
+                    </div>
+                </CardContent>
+            </Card>
+
             <Tabs defaultValue="students" className="w-full" onValueChange={setActiveTab}>
                 <div className="flex flex-wrap gap-4 justify-between items-center mb-4">
                     <TabsList>
@@ -192,7 +297,7 @@ function AdminDashboard() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Listado de Alumnas y sus Reservas</CardTitle>
-                            <CardDescription>Aquí puedes ver todas las reservas realizadas.</CardDescription>
+                            <CardDescription>Aquí puedes ver y editar todas las reservas realizadas.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <Table>
@@ -201,10 +306,9 @@ function AdminDashboard() {
                                         <TableHead>Nombre</TableHead>
                                         <TableHead>Bono</TableHead>
                                         <TableHead>Precio</TableHead>
-                                        <TableHead className="hidden md:table-cell">Email</TableHead>
-                                        <TableHead className="hidden md:table-cell">Teléfono</TableHead>
                                         <TableHead>Clases Reservadas</TableHead>
                                         <TableHead className="hidden lg:table-cell">Fecha Reserva</TableHead>
+                                        <TableHead>Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -213,8 +317,6 @@ function AdminDashboard() {
                                             <TableCell className="font-medium">{booking.student.name}</TableCell>
                                             <TableCell>{booking.packSize} clases</TableCell>
                                             <TableCell>{booking.price}€</TableCell>
-                                            <TableCell className="hidden md:table-cell">{booking.student.email}</TableCell>
-                                            <TableCell className="hidden md:table-cell">{booking.student.phone}</TableCell>
                                             <TableCell>
                                                 <ul className="list-disc list-inside text-sm">
                                                     {booking.classes.map(cls => (
@@ -225,10 +327,13 @@ function AdminDashboard() {
                                                 </ul>
                                             </TableCell>
                                             <TableCell className="hidden lg:table-cell">{new Date(booking.bookingDate).toLocaleString('es-ES')}</TableCell>
+                                            <TableCell>
+                                                <Button variant="outline" size="icon" onClick={() => setEditingBooking(booking)}><Edit className="h-4 w-4" /></Button>
+                                            </TableCell>
                                         </TableRow>
                                     )) : (
                                         <TableRow>
-                                            <TableCell colSpan={7} className="text-center h-24">No hay reservas todavía.</TableCell>
+                                            <TableCell colSpan={6} className="text-center h-24">No hay reservas todavía.</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
@@ -240,7 +345,7 @@ function AdminDashboard() {
                     <Card>
                         <CardHeader><CardTitle>Listado de Asistencia por Clase</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
-                            {classesWithAttendees.length > 0 ? classesWithAttendees.map(({ classDetails, attendees }) => (
+                            {classesWithAttendees.length > 0 ? classesWithAttendees.filter(c=> c.attendees.length > 0).map(({ classDetails, attendees }) => (
                                 <Card key={classDetails.id}>
                                     <CardHeader>
                                         <CardTitle>{classDetails.name} - {new Date(classDetails.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} a las {classDetails.time}</CardTitle>
@@ -317,6 +422,22 @@ function AdminDashboard() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <Dialog open={!!editingBooking} onOpenChange={(open) => !open && setEditingBooking(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Editar Reserva</DialogTitle>
+                    </DialogHeader>
+                    {editingBooking && (
+                        <EditBookingForm 
+                            booking={editingBooking}
+                            allClasses={classesWithAttendees.map(c => c.classDetails)}
+                            onSave={handleSaveBookingChanges}
+                            onCancel={() => setEditingBooking(null)}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
         </>
     );
 }
@@ -328,7 +449,6 @@ export function AdminManager() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, use a secure authentication method.
     if (password === 'admin') {
       setIsAuthenticated(true);
       setError('');

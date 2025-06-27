@@ -4,7 +4,28 @@ import { bookingService } from '@/lib/data'
 import type { AeroClass, Student } from '@/lib/types'
 
 export async function fetchClasses() {
-  return bookingService.getClasses()
+  const allClasses = bookingService.getClasses();
+  const activeMonth = bookingService.getActiveBookingMonth();
+  const activeYear = activeMonth.getFullYear();
+  const activeMonthIndex = activeMonth.getMonth();
+
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  return allClasses.filter(c => {
+    const classDate = new Date(c.date);
+    return classDate.getFullYear() === activeYear 
+        && classDate.getMonth() === activeMonthIndex
+        && classDate >= today;
+  });
+}
+
+export async function getActiveBookingMonth() {
+    return bookingService.getActiveBookingMonth();
+}
+
+export async function setActiveBookingMonth(year: number, month: number) {
+    return bookingService.setActiveBookingMonth(year, month);
 }
 
 export async function createBooking(student: Student, selectedClasses: Pick<AeroClass, 'id'>[], packSize: number) {
@@ -14,6 +35,15 @@ export async function createBooking(student: Student, selectedClasses: Pick<Aero
   } catch (error) {
     return { success: false, error: (error as Error).message };
   }
+}
+
+export async function updateBookingClasses(bookingId: string, newClassIds: Pick<AeroClass, 'id'>[]) {
+    try {
+        const updatedBooking = bookingService.updateBookingClasses(bookingId, newClassIds);
+        return { success: true, booking: JSON.parse(JSON.stringify(updatedBooking)) };
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
+    }
 }
 
 export async function fetchAdminData() {
