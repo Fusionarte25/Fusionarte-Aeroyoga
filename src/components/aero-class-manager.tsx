@@ -16,6 +16,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Input } from "@/components/ui/input"
 
 
 // --- Mock Data Generation ---
@@ -28,7 +29,7 @@ const schedule = [
   { day: 3, time: "17:00", name: "Aeroyoga Principiante" },
   { day: 3, time: "18:00", name: "Aeroyoga Intermedio" },
   // Jueves
-  { day: 4, time: "17:00", name: "Aeroyoga Mixto" },
+  { day: 4, time: "17:30", name: "Aeroyoga Mixto" },
   // Sábado
   { day: 6, time: "10:00", name: "Aeroyoga Intermedio" },
 ];
@@ -49,13 +50,13 @@ const generateMockClasses = (month: Date): AeroClass[] => {
 
     schedule.forEach(scheduledClass => {
       if (dayOfWeek === scheduledClass.day) {
-        const bookedSpots = Math.floor(Math.random() * 11);
+        const bookedSpots = Math.floor(Math.random() * 8); // Max 7 booked spots
         classes.push({
           id: `class-${year}-${monthIndex}-${day}-${scheduledClass.time.replace(':', '')}`,
           name: scheduledClass.name,
           date,
           time: scheduledClass.time,
-          totalSpots: 10,
+          totalSpots: 7,
           bookedSpots,
         });
       }
@@ -138,6 +139,9 @@ export function AeroClassManager() {
   const [selectedClasses, setSelectedClasses] = useState<AeroClass[]>([])
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [classes, setClasses] = useState<AeroClass[]>([])
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [phone, setPhone] = useState("")
   const { toast } = useToast()
 
   useEffect(() => {
@@ -194,26 +198,33 @@ export function AeroClassManager() {
         toast({ variant: "destructive", title: "No hay clases seleccionadas", description: "Por favor, selecciona al menos una clase para reservar." })
         return
     }
-    // In a real app, this would trigger an API call
+    if (!name || !email || !phone) {
+        toast({ variant: "destructive", title: "Faltan datos", description: "Por favor, completa tu nombre, email y teléfono para continuar." });
+        return;
+    }
+
     toast({
-        title: "¡Reserva Confirmada!",
-        description: `Has reservado con éxito ${selectedClasses.length} clases.`,
-        action: <Button variant="outline" size="sm">Ver</Button>
+        title: `¡Reserva Confirmada, ${name}!`,
+        description: `Has reservado con éxito ${selectedClasses.length} clases. Recibirás la confirmación en ${email}.`,
     })
     
-    // Reset state after booking
     const updatedClasses = classes.map(cls => {
         const selectedVersion = selectedClasses.find(sc => sc.id === cls.id)
         if (selectedVersion) {
-            return { ...cls, bookedSpots: cls.bookedSpots + 1 }
+            return { ...cls, bookedSpots: Math.min(cls.bookedSpots + 1, cls.totalSpots) }
         }
         return cls;
     })
     setClasses(updatedClasses)
     setSelectedClasses([])
+    setName("")
+    setEmail("")
+    setPhone("")
   }
 
-  const remainingSlots = packSize !== null ? packSize - selectedClasses.length : 0
+  const remainingSlots = packSize !== null ? packSize - selectedClasses.length : 0;
+  const isBookingDisabled = selectedClasses.length === 0 || !name || !email || !phone;
+
 
   return (
     <div className="space-y-6">
@@ -223,12 +234,11 @@ export function AeroClassManager() {
         <p className="text-muted-foreground mt-1">Selecciona tu pack, elige tus clases y prepárate para volar.</p>
       </header>
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 lg:gap-8 space-y-8 lg:space-y-0">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-8">
-            {/* --- Pack Selector --- */}
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Users className="text-primary"/>Elige Tu Plan</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Users className="text-primary"/>Paso 1: Elige Tu Plan</CardTitle>
                 <CardDescription>Selecciona un pack mensual para empezar a reservar.</CardDescription>
               </CardHeader>
               <CardContent>
@@ -248,59 +258,13 @@ export function AeroClassManager() {
                 </RadioGroup>
               </CardContent>
             </Card>
-            
-            {/* --- Selected Classes --- */}
-            <Card className="shadow-lg hover:shadow-xl transition-shadow">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2"><List className="text-primary"/>Tus Selecciones</CardTitle>
-                  {packSize !== null && (
-                      <CardDescription>
-                          Puedes reservar <span className="font-bold text-primary">{remainingSlots}</span> clases más.
-                      </CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent>
-                    {selectedClasses.length > 0 ? (
-                        <ul className="space-y-3">
-                           {selectedClasses.map(cls => (
-                               <li key={cls.id} className="flex items-center justify-between bg-secondary p-3 rounded-lg animate-in fade-in-20">
-                                   <div>
-                                       <p className="font-semibold">{cls.date.toLocaleDateString('es-ES', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-                                       <p className="text-sm text-muted-foreground">a las {cls.time}</p>
-                                   </div>
-                                   <Button variant="ghost" size="icon" onClick={() => handleRemoveClass(cls.id)} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full h-8 w-8">
-                                       <Trash2 className="h-4 w-4"/>
-                                       <span className="sr-only">Quitar</span>
-                                   </Button>
-                               </li>
-                           ))}
-                        </ul>
-                    ) : (
-                        <div className="text-center text-muted-foreground py-8">
-                            <p>Tus clases seleccionadas aparecerán aquí.</p>
-                        </div>
-                    )}
-                </CardContent>
-                <CardFooter>
-                    <Button 
-                        size="lg" 
-                        className="w-full text-lg" 
-                        onClick={handleConfirmBooking}
-                        disabled={selectedClasses.length === 0}
-                    >
-                        <Check className="mr-2 h-5 w-5"/>
-                        Confirmar Reserva ({selectedClasses.length})
-                    </Button>
-                </CardFooter>
-            </Card>
         </div>
 
-        {/* --- Calendar View --- */}
         <div className="lg:col-span-2">
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><CalendarDays className="text-primary"/>Clases Disponibles</CardTitle>
-                    <CardDescription>Haz clic en un día para ver y seleccionar las clases disponibles.</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><CalendarDays className="text-primary"/>Paso 2: Selecciona Clases</CardTitle>
+                    <CardDescription>Haz clic en un día para ver y seleccionar las clases disponibles. Necesitas un plan para poder seleccionar.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Calendar
@@ -330,6 +294,72 @@ export function AeroClassManager() {
                 </CardContent>
             </Card>
         </div>
+      </div>
+
+      <div className="mt-8">
+        <Card className="shadow-lg hover:shadow-xl transition-shadow">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><List className="text-primary"/>Paso 3: Confirma tu Reserva</CardTitle>
+              {packSize !== null && (
+                  <CardDescription>
+                      Has seleccionado <span className="font-bold text-primary">{selectedClasses.length}</span> de <span className="font-bold text-primary">{packSize}</span> clases. Te quedan <span className="font-bold text-primary">{remainingSlots}</span>.
+                  </CardDescription>
+              )}
+            </CardHeader>
+            <CardContent>
+                {selectedClasses.length > 0 ? (
+                    <div className="space-y-6">
+                       <ul className="space-y-3">
+                           {selectedClasses.map(cls => (
+                               <li key={cls.id} className="flex items-center justify-between bg-secondary p-3 rounded-lg animate-in fade-in-20">
+                                   <div>
+                                       <p className="font-semibold">{cls.name} - {cls.date.toLocaleDateString('es-ES', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                                       <p className="text-sm text-muted-foreground">a las {cls.time}</p>
+                                   </div>
+                                   <Button variant="ghost" size="icon" onClick={() => handleRemoveClass(cls.id)} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full h-8 w-8">
+                                       <Trash2 className="h-4 w-4"/>
+                                       <span className="sr-only">Quitar</span>
+                                   </Button>
+                               </li>
+                           ))}
+                       </ul>
+                       <Separator />
+                       <div className="space-y-4">
+                            <h3 className="text-lg font-medium">Tus Datos para la Reserva</h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="name">Nombre y Apellido</Label>
+                                    <Input id="name" placeholder="Tu nombre completo" value={name} onChange={(e) => setName(e.target.value)} />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="phone">Teléfono</Label>
+                                    <Input id="phone" type="tel" placeholder="600 123 456" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="email">Correo Electrónico</Label>
+                                <Input id="email" type="email" placeholder="tu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                            </div>
+                       </div>
+                    </div>
+                ) : (
+                    <div className="text-center text-muted-foreground py-8">
+                        <p>Cuando selecciones tus clases, aparecerán aquí junto con el formulario de reserva.</p>
+                    </div>
+                )}
+            </CardContent>
+            <CardFooter>
+                <Button 
+                    size="lg" 
+                    className="w-full text-lg" 
+                    onClick={handleConfirmBooking}
+                    disabled={isBookingDisabled}
+                >
+                    <Check className="mr-2 h-5 w-5"/>
+                    Confirmar Reserva ({selectedClasses.length})
+                </Button>
+            </CardFooter>
+        </Card>
       </div>
     </div>
   )
