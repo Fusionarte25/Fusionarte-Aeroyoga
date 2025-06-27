@@ -5,16 +5,16 @@ import type { AeroClass, Booking, Student } from "@/lib/types";
 
 const schedule = [
   // Martes
-  { day: 2, time: "17:00", name: "Aeroyoga Intermedio" },
-  { day: 2, time: "18:00", name: "Aeroyoga Principiante" },
+  { day: 2, time: "17:00", name: "Aeroyoga Intermedio", teacher: "Ana" },
+  { day: 2, time: "18:00", name: "Aeroyoga Principiante", teacher: "Ana" },
   // Miércoles
-  { day: 3, time: "08:15", name: "Aeroyoga Principiantes" },
-  { day: 3, time: "17:00", name: "Aeroyoga Principiante" },
-  { day: 3, time: "18:00", name: "Aeroyoga Intermedio" },
+  { day: 3, time: "08:15", name: "Aeroyoga Principiantes", teacher: "Laura" },
+  { day: 3, time: "17:00", name: "Aeroyoga Principiante", teacher: "Ana" },
+  { day: 3, time: "18:00", name: "Aeroyoga Intermedio", teacher: "Ana" },
   // Jueves
-  { day: 4, time: "17:30", name: "Aeroyoga Mixto" },
+  { day: 4, time: "17:30", name: "Aeroyoga Mixto", teacher: "Laura" },
   // Sábado
-  { day: 6, time: "10:00", name: "Aeroyoga Intermedio" },
+  { day: 6, time: "10:00", name: "Aeroyoga Intermedio", teacher: "Ana" },
 ];
 
 const generateMockClasses = (month: Date): AeroClass[] => {
@@ -40,6 +40,7 @@ const generateMockClasses = (month: Date): AeroClass[] => {
           time: scheduledClass.time,
           totalSpots: 7,
           bookedSpots: 0,
+          teacher: scheduledClass.teacher
         });
       }
     });
@@ -70,16 +71,14 @@ class BookingService {
   }
 
   getClasses(): AeroClass[] {
-    // Return a deep copy to prevent mutation of original data on client
     return JSON.parse(JSON.stringify(this.classes));
   }
 
   getBookings(): Booking[] {
-    // Return a deep copy
     return JSON.parse(JSON.stringify(this.bookings));
   }
   
-  addBooking(student: Student, selectedClasses: Pick<AeroClass, 'id'>[]): Booking {
+  addBooking(student: Student, selectedClasses: Pick<AeroClass, 'id'>[], packSize: number): Booking {
     const bookingId = `booking-${Date.now()}-${Math.random()}`;
     const fullClassDetails: AeroClass[] = [];
 
@@ -89,13 +88,11 @@ class BookingService {
             this.classes[classIndex].bookedSpots++;
             fullClassDetails.push(this.classes[classIndex]);
         } else {
-            // If a class is full, we shouldn't proceed with the booking for that class
             console.warn(`Class ${selectedClass.id} is full or does not exist.`);
         }
     });
 
     if (fullClassDetails.length !== selectedClasses.length) {
-        // Rollback booked spots if not all classes could be booked
         fullClassDetails.forEach(bookedClass => {
             const classIndex = this.classes.findIndex(c => c.id === bookedClass.id);
             if (classIndex !== -1) {
@@ -109,7 +106,8 @@ class BookingService {
         id: bookingId,
         student,
         classes: fullClassDetails,
-        bookingDate: new Date()
+        bookingDate: new Date(),
+        packSize
     };
     
     this.bookings.push(newBooking);
@@ -121,7 +119,6 @@ class BookingService {
 
     this.bookings.forEach(booking => {
         booking.classes.forEach(cls => {
-            // Find the most up-to-date class details from the source
             const currentClassDetails = this.classes.find(c => c.id === cls.id);
             if (!currentClassDetails) return;
 
@@ -132,7 +129,6 @@ class BookingService {
         });
     });
 
-    // Also include classes that have no attendees yet
     this.classes.forEach(cls => {
         if (!classMap.has(cls.id)) {
              classMap.set(cls.id, { classDetails: cls, attendees: [] });
@@ -140,6 +136,43 @@ class BookingService {
     });
 
     return Array.from(classMap.values()).sort((a,b) => new Date(a.classDetails.date).getTime() - new Date(b.classDetails.date).getTime());
+  }
+
+  addClass(classData: Omit<AeroClass, 'id' | 'bookedSpots' | 'date'> & { date: string }): AeroClass {
+    const newClass: AeroClass = {
+        ...classData,
+        id: `class-${Date.now()}`,
+        date: new Date(classData.date),
+        bookedSpots: 0,
+    };
+    this.classes.push(newClass);
+    return newClass;
+  }
+
+  updateClass(classData: Omit<AeroClass, 'date'> & { date: string }): AeroClass | null {
+      const classIndex = this.classes.findIndex(c => c.id === classData.id);
+      if(classIndex === -1) return null;
+      
+      const updatedClass = {
+          ...this.classes[classIndex],
+          ...classData,
+          date: new Date(classData.date)
+      };
+      this.classes[classIndex] = updatedClass;
+      return updatedClass;
+  }
+
+  deleteClass(classId: string): boolean {
+    const classIndex = this.classes.findIndex(c => c.id === classId);
+    if(classIndex === -1) return false;
+
+    // A simple check: do not delete if class has bookings.
+    if(this.classes[classIndex].bookedSpots > 0) {
+      throw new Error("No se puede eliminar una clase que ya tiene reservas.");
+    }
+    
+    this.classes.splice(classIndex, 1);
+    return true;
   }
 }
 

@@ -3,12 +3,11 @@
 import React, { useState, useMemo, useEffect } from "react"
 import { DayPicker, DayProps } from "react-day-picker"
 import { es } from "date-fns/locale"
-import { Wind, CalendarDays, Check, List, Trash2, Users } from "lucide-react"
+import { Wind, CalendarDays, Check, List, Trash2, Users, FileText } from "lucide-react"
 
 import type { AeroClass } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
@@ -108,8 +107,7 @@ export function AeroClassManager() {
         setIsLoading(false);
     }
     loadClasses();
-  }, [currentMonth])
-
+  }, [])
 
   const handleSelectPack = (value: string) => {
     const newPackSize = parseInt(value, 10)
@@ -136,7 +134,7 @@ export function AeroClassManager() {
     }
 
     if (selectedClasses.length >= packSize) {
-      toast({ variant: "destructive", title: "Límite Alcanzado", description: `Solo puedes seleccionar hasta ${packSize} clases.` })
+      toast({ variant: "destructive", title: "Límite Alcanzado", description: `Ya has seleccionado ${packSize} clases para tu bono.` })
       return
     }
 
@@ -148,8 +146,10 @@ export function AeroClassManager() {
   }
   
   const handleConfirmBooking = async () => {
-    if (selectedClasses.length === 0) {
-        toast({ variant: "destructive", title: "No hay clases seleccionadas", description: "Por favor, selecciona al menos una clase para reservar." })
+    if (!packSize) return;
+
+    if (selectedClasses.length !== packSize) {
+        toast({ variant: "destructive", title: "Clases insuficientes", description: `Debes seleccionar exactamente ${packSize} clases para tu bono.` })
         return
     }
     if (!name || !email || !phone) {
@@ -160,7 +160,7 @@ export function AeroClassManager() {
     const student = { name, email, phone };
     const classIds = selectedClasses.map(c => ({ id: c.id }));
 
-    const result = await createBooking(student, classIds);
+    const result = await createBooking(student, classIds, packSize);
 
     if (result.success) {
         toast({
@@ -168,6 +168,7 @@ export function AeroClassManager() {
             description: `Has reservado con éxito ${selectedClasses.length} clases. Recibirás la confirmación en ${email}.`,
         });
         
+        // Refresh classes data after booking
         const fetchedClasses = await fetchClasses();
         const classesWithDates = fetchedClasses.map(c => ({...c, date: new Date(c.date)}));
         setClasses(classesWithDates);
@@ -176,6 +177,7 @@ export function AeroClassManager() {
         setName("");
         setEmail("");
         setPhone("");
+        setPackSize(null);
     } else {
         toast({
             variant: "destructive",
@@ -186,8 +188,7 @@ export function AeroClassManager() {
   }
 
   const remainingSlots = packSize !== null ? packSize - selectedClasses.length : 0;
-  const isBookingDisabled = selectedClasses.length === 0 || !name || !email || !phone;
-
+  const isBookingDisabled = !packSize || !name || !email || !phone || selectedClasses.length !== packSize;
 
   return (
     <div className="space-y-6">
@@ -201,11 +202,11 @@ export function AeroClassManager() {
         <div className="lg:col-span-1 space-y-8">
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Users className="text-primary"/>Paso 1: Elige Tu Plan</CardTitle>
-                <CardDescription>Selecciona un pack mensual para empezar a reservar.</CardDescription>
+                <CardTitle className="flex items-center gap-2"><Users className="text-primary"/>Paso 1: Elige Tu Bono</CardTitle>
+                <CardDescription>Selecciona un bono mensual para empezar a reservar.</CardDescription>
               </CardHeader>
               <CardContent>
-                <RadioGroup onValueChange={handleSelectPack} value={packSize?.toString()}>
+                <RadioGroup onValueChange={handleSelectPack} value={packSize?.toString() ?? ''}>
                     <div className="flex items-center space-x-2 p-4 rounded-md has-[:checked]:bg-accent has-[:checked]:shadow-inner">
                         <RadioGroupItem value="4" id="p4" />
                         <Label htmlFor="p4" className="text-base flex-grow cursor-pointer">4 Clases / mes</Label>
@@ -221,18 +222,39 @@ export function AeroClassManager() {
                 </RadioGroup>
               </CardContent>
             </Card>
+
+            <Card className="shadow-lg hover:shadow-xl transition-shadow">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><FileText className="text-primary"/>Paso 2: Tus Datos</CardTitle>
+                    <CardDescription>Completa tus datos para la reserva.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="name">Nombre y Apellido</Label>
+                        <Input id="name" placeholder="Tu nombre completo" value={name} onChange={(e) => setName(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="email">Correo Electrónico</Label>
+                        <Input id="email" type="email" placeholder="tu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="phone">Teléfono</Label>
+                        <Input id="phone" type="tel" placeholder="600 123 456" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                    </div>
+                </CardContent>
+            </Card>
         </div>
 
         <div className="lg:col-span-2">
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><CalendarDays className="text-primary"/>Paso 2: Selecciona Clases</CardTitle>
-                    <CardDescription>Haz clic en un día para ver y seleccionar las clases disponibles. Necesitas un plan para poder seleccionar.</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><CalendarDays className="text-primary"/>Paso 3: Selecciona Clases</CardTitle>
+                    <CardDescription>Haz clic en un día para ver y seleccionar las clases disponibles. Necesitas un bono para poder seleccionar.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (
                          <div className="flex justify-center items-center min-h-[300px]">
-                            <Skeleton className="h-[300px] w-full" />
+                            <Skeleton className="h-[450px] w-full" />
                          </div>
                     ) : (
                         <Calendar
@@ -240,6 +262,7 @@ export function AeroClassManager() {
                             mode="single"
                             month={currentMonth}
                             onMonthChange={setCurrentMonth}
+                            onDayClick={() => {}}
                             components={{ Day: (props: DayProps) => (
                               <CustomDay 
                                 {...props}
@@ -268,66 +291,54 @@ export function AeroClassManager() {
       <div className="mt-8">
         <Card className="shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><List className="text-primary"/>Paso 3: Confirma tu Reserva</CardTitle>
-              {packSize !== null && (
+              <CardTitle className="flex items-center gap-2"><List className="text-primary"/>Paso 4: Confirma tu Reserva</CardTitle>
+              {packSize !== null ? (
                   <CardDescription>
-                      Has seleccionado <span className="font-bold text-primary">{selectedClasses.length}</span> de <span className="font-bold text-primary">{packSize}</span> clases. Te quedan <span className="font-bold text-primary">{remainingSlots}</span>.
+                      Has seleccionado <span className="font-bold text-primary">{selectedClasses.length}</span> de <span className="font-bold text-primary">{packSize}</span> clases.
+                      {remainingSlots > 0 ? ` Te quedan ${remainingSlots} por seleccionar.` : ' ¡Lista para confirmar!'}
                   </CardDescription>
+              ) : (
+                <CardDescription>Selecciona un bono y tus clases para ver aquí el resumen.</CardDescription>
               )}
             </CardHeader>
             <CardContent>
                 {selectedClasses.length > 0 ? (
-                    <div className="space-y-6">
-                       <ul className="space-y-3">
-                           {selectedClasses.map(cls => (
-                               <li key={cls.id} className="flex items-center justify-between bg-secondary p-3 rounded-lg animate-in fade-in-20">
-                                   <div>
-                                       <p className="font-semibold">{cls.name} - {cls.date.toLocaleDateString('es-ES', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-                                       <p className="text-sm text-muted-foreground">a las {cls.time}</p>
-                                   </div>
-                                   <Button variant="ghost" size="icon" onClick={() => handleRemoveClass(cls.id)} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full h-8 w-8">
-                                       <Trash2 className="h-4 w-4"/>
-                                       <span className="sr-only">Quitar</span>
-                                   </Button>
-                               </li>
-                           ))}
-                       </ul>
-                       <Separator />
-                       <div className="space-y-4">
-                            <h3 className="text-lg font-medium">Tus Datos para la Reserva</h3>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label htmlFor="name">Nombre y Apellido</Label>
-                                    <Input id="name" placeholder="Tu nombre completo" value={name} onChange={(e) => setName(e.target.value)} />
+                    <ul className="space-y-3">
+                        {selectedClasses.map(cls => (
+                            <li key={cls.id} className="flex items-center justify-between bg-secondary p-3 rounded-lg animate-in fade-in-20">
+                                <div>
+                                    <p className="font-semibold">{cls.name} - {cls.date.toLocaleDateString('es-ES', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                                    <p className="text-sm text-muted-foreground">a las {cls.time}</p>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="phone">Teléfono</Label>
-                                    <Input id="phone" type="tel" placeholder="600 123 456" value={phone} onChange={(e) => setPhone(e.target.value)} />
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="email">Correo Electrónico</Label>
-                                <Input id="email" type="email" placeholder="tu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
-                            </div>
-                       </div>
-                    </div>
+                                <Button variant="ghost" size="icon" onClick={() => handleRemoveClass(cls.id)} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full h-8 w-8">
+                                    <Trash2 className="h-4 w-4"/>
+                                    <span className="sr-only">Quitar</span>
+                                </Button>
+                            </li>
+                        ))}
+                    </ul>
                 ) : (
                     <div className="text-center text-muted-foreground py-8">
-                        <p>Cuando selecciones tus clases, aparecerán aquí junto con el formulario de reserva.</p>
+                        <p>Cuando selecciones tus clases, aparecerán aquí.</p>
                     </div>
                 )}
             </CardContent>
-            <CardFooter>
-                <Button 
-                    size="lg" 
-                    className="w-full text-lg" 
-                    onClick={handleConfirmBooking}
-                    disabled={isBookingDisabled}
-                >
-                    <Check className="mr-2 h-5 w-5"/>
-                    Confirmar Reserva ({selectedClasses.length})
-                </Button>
-            </CardFooter>
+            {packSize && selectedClasses.length > 0 && (
+                <CardFooter>
+                    <Button 
+                        size="lg" 
+                        className="w-full text-lg" 
+                        onClick={handleConfirmBooking}
+                        disabled={isBookingDisabled}
+                    >
+                        <Check className="mr-2 h-5 w-5"/>
+                        { isBookingDisabled && remainingSlots > 0 
+                            ? `Selecciona ${remainingSlots} clase${remainingSlots > 1 ? 's' : ''} más`
+                            : `Confirmar Reserva (${selectedClasses.length})`
+                        }
+                    </Button>
+                </CardFooter>
+            )}
         </Card>
       </div>
     </div>

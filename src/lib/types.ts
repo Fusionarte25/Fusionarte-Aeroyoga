@@ -5,6 +5,7 @@ export interface AeroClass {
   time: string;
   totalSpots: number;
   bookedSpots: number;
+  teacher?: string;
 }
 
 export interface Student {
@@ -18,4 +19,5 @@ export interface Booking {
   student: Student;
   classes: AeroClass[];
   bookingDate: Date;
+  packSize: number;
 }

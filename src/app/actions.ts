@@ -7,9 +7,9 @@ export async function fetchClasses() {
   return bookingService.getClasses()
 }
 
-export async function createBooking(student: Student, selectedClasses: Pick<AeroClass, 'id'>[]) {
+export async function createBooking(student: Student, selectedClasses: Pick<AeroClass, 'id'>[], packSize: number) {
   try {
-    const booking = bookingService.addBooking(student, selectedClasses);
+    const booking = bookingService.addBooking(student, selectedClasses, packSize);
     return { success: true, booking: JSON.parse(JSON.stringify(booking)) };
   } catch (error) {
     return { success: false, error: (error as Error).message };
@@ -24,6 +24,35 @@ export async function fetchAdminData() {
         classesWithAttendees: JSON.parse(JSON.stringify(classesWithAttendees)) 
     };
 }
+
+export async function addClass(classData: Omit<AeroClass, 'id' | 'bookedSpots' | 'date'> & { date: string }) {
+    try {
+        const newClass = bookingService.addClass(classData);
+        return { success: true, class: JSON.parse(JSON.stringify(newClass)) };
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
+    }
+}
+
+export async function updateClass(classData: Omit<AeroClass, 'date'> & { date: string }) {
+    try {
+        const updatedClass = bookingService.updateClass(classData);
+        if (!updatedClass) throw new Error("Class not found");
+        return { success: true, class: JSON.parse(JSON.stringify(updatedClass)) };
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
+    }
+}
+
+export async function deleteClass(classId: string) {
+    try {
+        bookingService.deleteClass(classId);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
+    }
+}
+
 
 function convertToCsv(data: any[], headers: Record<string, string>) {
     const headerKeys = Object.keys(headers);
@@ -57,6 +86,7 @@ export async function getStudentCsv() {
         email: b.student.email,
         phone: b.student.phone,
         bookingDate: b.bookingDate,
+        packSize: `${b.packSize} clases`,
         classes: b.classes,
     }));
     const headers = {
@@ -64,6 +94,7 @@ export async function getStudentCsv() {
         email: 'Email',
         phone: 'Teléfono',
         bookingDate: 'Fecha de Reserva',
+        packSize: 'Bono Seleccionado',
         classes: 'Clases Reservadas',
     };
     return convertToCsv(bookings, headers);
@@ -75,6 +106,7 @@ export async function getClassCsv() {
         className: c.classDetails.name,
         date: new Date(c.classDetails.date),
         time: c.classDetails.time,
+        teacher: c.classDetails.teacher,
         attendees: c.attendees,
         booked: c.classDetails.bookedSpots,
         total: c.classDetails.totalSpots,
@@ -83,6 +115,7 @@ export async function getClassCsv() {
         className: 'Clase',
         date: 'Fecha',
         time: 'Hora',
+        teacher: 'Profesor/a',
         booked: 'Plazas Ocupadas',
         total: 'Plazas Totales',
         attendees: 'Nombres de Asistentes',
