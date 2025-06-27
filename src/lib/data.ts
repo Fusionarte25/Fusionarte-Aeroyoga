@@ -253,9 +253,11 @@ const globalForBookingService = global as unknown as {
   bookingService: BookingService | undefined;
 };
 
-export const bookingService =
+const bookingService =
   globalForBookingService.bookingService ?? BookingService.getInstance();
 
 if (process.env.NODE_ENV !== 'production') {
   globalForBookingService.bookingService = bookingService;
 }
+
+export default bookingService;
