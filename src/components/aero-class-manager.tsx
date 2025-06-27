@@ -17,54 +17,8 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Input } from "@/components/ui/input"
-
-
-// --- Mock Data Generation ---
-const schedule = [
-  // Martes
-  { day: 2, time: "17:00", name: "Aeroyoga Intermedio" },
-  { day: 2, time: "18:00", name: "Aeroyoga Principiante" },
-  // Miércoles
-  { day: 3, time: "08:15", name: "Aeroyoga Principiantes" },
-  { day: 3, time: "17:00", name: "Aeroyoga Principiante" },
-  { day: 3, time: "18:00", name: "Aeroyoga Intermedio" },
-  // Jueves
-  { day: 4, time: "17:30", name: "Aeroyoga Mixto" },
-  // Sábado
-  { day: 6, time: "10:00", name: "Aeroyoga Intermedio" },
-];
-
-const generateMockClasses = (month: Date): AeroClass[] => {
-  const classes: AeroClass[] = [];
-  const year = month.getFullYear();
-  const monthIndex = month.getMonth();
-  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(year, monthIndex, day);
-    if (date < today) continue;
-
-    const dayOfWeek = date.getDay();
-
-    schedule.forEach(scheduledClass => {
-      if (dayOfWeek === scheduledClass.day) {
-        const bookedSpots = Math.floor(Math.random() * 8); // Max 7 booked spots
-        classes.push({
-          id: `class-${year}-${monthIndex}-${day}-${scheduledClass.time.replace(':', '')}`,
-          name: scheduledClass.name,
-          date,
-          time: scheduledClass.time,
-          totalSpots: 7,
-          bookedSpots,
-        });
-      }
-    });
-  }
-  return classes;
-};
-
+import { Skeleton } from "@/components/ui/skeleton"
+import { createBooking, fetchClasses } from "@/app/actions"
 
 // --- Custom Day Component for Calendar ---
 function CustomDay(props: DayProps & {
@@ -139,23 +93,23 @@ export function AeroClassManager() {
   const [selectedClasses, setSelectedClasses] = useState<AeroClass[]>([])
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [classes, setClasses] = useState<AeroClass[]>([])
+  const [isLoading, setIsLoading] = useState(true)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
   const { toast } = useToast()
 
   useEffect(() => {
-    setClasses(generateMockClasses(currentMonth))
+    const loadClasses = async () => {
+        setIsLoading(true);
+        const fetchedClasses = await fetchClasses();
+        const classesWithDates = fetchedClasses.map(c => ({...c, date: new Date(c.date)}));
+        setClasses(classesWithDates);
+        setIsLoading(false);
+    }
+    loadClasses();
   }, [currentMonth])
 
-  const classesByDay = useMemo(() => {
-    return classes.reduce((acc, cls) => {
-      const day = cls.date.toDateString()
-      if (!acc[day]) acc[day] = []
-      acc[day].push(cls)
-      return acc
-    }, {} as Record<string, AeroClass[]>)
-  }, [classes])
 
   const handleSelectPack = (value: string) => {
     const newPackSize = parseInt(value, 10)
@@ -193,7 +147,7 @@ export function AeroClassManager() {
     setSelectedClasses(prev => prev.filter(c => c.id !== classId))
   }
   
-  const handleConfirmBooking = () => {
+  const handleConfirmBooking = async () => {
     if (selectedClasses.length === 0) {
         toast({ variant: "destructive", title: "No hay clases seleccionadas", description: "Por favor, selecciona al menos una clase para reservar." })
         return
@@ -203,23 +157,32 @@ export function AeroClassManager() {
         return;
     }
 
-    toast({
-        title: `¡Reserva Confirmada, ${name}!`,
-        description: `Has reservado con éxito ${selectedClasses.length} clases. Recibirás la confirmación en ${email}.`,
-    })
-    
-    const updatedClasses = classes.map(cls => {
-        const selectedVersion = selectedClasses.find(sc => sc.id === cls.id)
-        if (selectedVersion) {
-            return { ...cls, bookedSpots: Math.min(cls.bookedSpots + 1, cls.totalSpots) }
-        }
-        return cls;
-    })
-    setClasses(updatedClasses)
-    setSelectedClasses([])
-    setName("")
-    setEmail("")
-    setPhone("")
+    const student = { name, email, phone };
+    const classIds = selectedClasses.map(c => ({ id: c.id }));
+
+    const result = await createBooking(student, classIds);
+
+    if (result.success) {
+        toast({
+            title: `¡Reserva Confirmada, ${name}!`,
+            description: `Has reservado con éxito ${selectedClasses.length} clases. Recibirás la confirmación en ${email}.`,
+        });
+        
+        const fetchedClasses = await fetchClasses();
+        const classesWithDates = fetchedClasses.map(c => ({...c, date: new Date(c.date)}));
+        setClasses(classesWithDates);
+        
+        setSelectedClasses([]);
+        setName("");
+        setEmail("");
+        setPhone("");
+    } else {
+        toast({
+            variant: "destructive",
+            title: "Error en la reserva",
+            description: result.error || "No se pudo completar la reserva. Inténtalo de nuevo."
+        });
+    }
   }
 
   const remainingSlots = packSize !== null ? packSize - selectedClasses.length : 0;
@@ -267,30 +230,36 @@ export function AeroClassManager() {
                     <CardDescription>Haz clic en un día para ver y seleccionar las clases disponibles. Necesitas un plan para poder seleccionar.</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Calendar
-                        locale={es}
-                        mode="single"
-                        month={currentMonth}
-                        onMonthChange={setCurrentMonth}
-                        components={{ Day: (props: DayProps) => (
-                          <CustomDay 
-                            {...props}
-                            allClasses={classes}
-                            selectedClasses={selectedClasses}
-                            onSelectClass={handleSelectClass}
-                            packSize={packSize}
-                          />
-                        )}}
-                        className="p-0"
-                        classNames={{
-                          months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-                          month: "space-y-4 w-full",
-                          head_cell: "text-muted-foreground rounded-md w-full font-normal text-[0.8rem]",
-                          row: "flex w-full mt-2",
-                          cell: "w-full text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
-                          day: "w-full h-full",
-                        }}
-                    />
+                    {isLoading ? (
+                         <div className="flex justify-center items-center min-h-[300px]">
+                            <Skeleton className="h-[300px] w-full" />
+                         </div>
+                    ) : (
+                        <Calendar
+                            locale={es}
+                            mode="single"
+                            month={currentMonth}
+                            onMonthChange={setCurrentMonth}
+                            components={{ Day: (props: DayProps) => (
+                              <CustomDay 
+                                {...props}
+                                allClasses={classes}
+                                selectedClasses={selectedClasses}
+                                onSelectClass={handleSelectClass}
+                                packSize={packSize}
+                              />
+                            )}}
+                            className="p-0"
+                            classNames={{
+                              months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
+                              month: "space-y-4 w-full",
+                              head_cell: "text-muted-foreground rounded-md w-full font-normal text-[0.8rem]",
+                              row: "flex w-full mt-2",
+                              cell: "w-full text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
+                              day: "w-full h-full",
+                            }}
+                        />
+                    )}
                 </CardContent>
             </Card>
         </div>
