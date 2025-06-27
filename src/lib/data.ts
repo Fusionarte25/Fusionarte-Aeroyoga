@@ -5,16 +5,16 @@ import type { AeroClass, Booking, Student } from "@/lib/types";
 
 const schedule = [
   // Martes
-  { day: 2, time: "17:00", name: "Aeroyoga Intermedio", teacher: "Ana" },
-  { day: 2, time: "18:00", name: "Aeroyoga Principiante", teacher: "Ana" },
+  { day: 2, time: "17:00", name: "Aeroyoga Intermedio", teacher: "Alexandra" },
+  { day: 2, time: "18:00", name: "Aeroyoga Principiante", teacher: "Alexandra" },
   // Miércoles
-  { day: 3, time: "08:15", name: "Aeroyoga Principiantes", teacher: "Laura" },
-  { day: 3, time: "17:00", name: "Aeroyoga Principiante", teacher: "Ana" },
-  { day: 3, time: "18:00", name: "Aeroyoga Intermedio", teacher: "Ana" },
+  { day: 3, time: "08:15", name: "Aeroyoga Principiantes", teacher: "Alexandra" },
+  { day: 3, time: "17:00", name: "Aeroyoga Principiante", teacher: "Alexandra" },
+  { day: 3, time: "18:00", name: "Aeroyoga Intermedio", teacher: "Alexandra" },
   // Jueves
-  { day: 4, time: "17:30", name: "Aeroyoga Mixto", teacher: "Laura" },
+  { day: 4, time: "17:30", name: "Aeroyoga Mixto", teacher: "Alexandra" },
   // Sábado
-  { day: 6, time: "10:00", name: "Aeroyoga Intermedio", teacher: "Ana" },
+  { day: 6, time: "10:00", name: "Aeroyoga Intermedio", teacher: "Alexandra" },
 ];
 
 const generateMockClasses = (month: Date): AeroClass[] => {
@@ -27,7 +27,9 @@ const generateMockClasses = (month: Date): AeroClass[] => {
 
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(year, monthIndex, day);
-    if (date < today) continue;
+    // We don't generate classes for past days, but we keep the logic here
+    // in case it's needed for historical views. In the UI, we'll prevent selection.
+    // if (date < today) continue; 
 
     const dayOfWeek = date.getDay();
 
@@ -71,7 +73,7 @@ class BookingService {
   }
 
   getClasses(): AeroClass[] {
-    return JSON.parse(JSON.stringify(this.classes));
+    return JSON.parse(JSON.stringify(this.classes.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())));
   }
 
   getBookings(): Booking[] {

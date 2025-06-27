@@ -30,7 +30,7 @@ function ClassForm({ classData, onSave, onCancel }: {
         date: classData?.date ? new Date(classData.date).toISOString().split('T')[0] : '',
         time: classData?.time || '',
         totalSpots: classData?.totalSpots || 7,
-        teacher: classData?.teacher || '',
+        teacher: classData?.teacher || 'Alexandra',
     });
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -244,7 +244,7 @@ function AdminDashboard() {
                                         <CardTitle>{classDetails.name} - {new Date(classDetails.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} a las {classDetails.time}</CardTitle>
                                         <CardDescription>
                                             Plazas: {classDetails.bookedSpots} / {classDetails.totalSpots}
-                                            {classDetails.teacher && ` - Profesor/a: ${classDetails.teacher}`}
+                                            {classDetails.teacher && ` - Profesora: ${classDetails.teacher}`}
                                         </CardDescription>
                                     </CardHeader>
                                     <CardContent>
@@ -268,7 +268,7 @@ function AdminDashboard() {
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Clase</TableHead><TableHead>Fecha y Hora</TableHead><TableHead>Profesor/a</TableHead><TableHead>Plazas</TableHead><TableHead>Acciones</TableHead>
+                                        <TableHead>Clase</TableHead><TableHead>Fecha y Hora</TableHead><TableHead>Profesora</TableHead><TableHead>Plazas</TableHead><TableHead>Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>

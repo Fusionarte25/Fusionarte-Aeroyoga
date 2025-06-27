@@ -3,9 +3,9 @@
 import React, { useState, useMemo, useEffect } from "react"
 import { DayPicker, DayProps } from "react-day-picker"
 import { es } from "date-fns/locale"
-import { Wind, CalendarDays, Check, List, Trash2, Users, FileText } from "lucide-react"
+import { Wind, CalendarDays, Check, List, Trash2, Users, FileText, CheckCircle2, CalendarCheck, Loader2 } from "lucide-react"
 
-import type { AeroClass } from "@/lib/types"
+import type { AeroClass, Booking } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -26,68 +26,121 @@ function CustomDay(props: DayProps & {
   onSelectClass: (cls: AeroClass) => void;
   packSize: number | null;
 }) {
-  const { date, displayMonth, allClasses, selectedClasses, onSelectClass, packSize } = props
-  const dayClasses = allClasses.filter(c => c.date.toDateString() === date.toDateString())
+  const { date, displayMonth, allClasses, onSelectClass, selectedClasses, packSize } = props;
+  const dayClasses = allClasses.filter(c => c.date.toDateString() === date.toDateString());
 
-  if (!displayMonth) return <></>
+  if (!displayMonth) return <></>;
 
-  const isSelectedDay = selectedClasses.some(sc => sc.date.toDateString() === date.toDateString())
+  const hasClasses = dayClasses.length > 0;
+  const isSelectedDay = selectedClasses.some(sc => sc.date.toDateString() === date.toDateString());
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  const isDayInPast = date < today;
 
   return (
     <div
       className={cn(
-        "relative flex h-full min-h-[100px] w-full flex-col p-1.5",
-        isSelectedDay && "bg-accent rounded-md"
+        "relative flex h-full min-h-[110px] w-full flex-col p-1.5 border-t transition-colors",
+        isDayInPast ? "bg-muted/50" : "hover:bg-accent/50",
+        hasClasses && !isDayInPast && "bg-primary/5",
+        isSelectedDay && "bg-accent ring-2 ring-primary z-10"
       )}
     >
-      <time dateTime={date.toISOString()} className="self-start">{date.getDate()}</time>
-      {dayClasses.length > 0 && (
-         <Accordion type="single" collapsible className="w-full -my-1">
-          <AccordionItem value="item-1" className="border-none">
-            <AccordionTrigger className="p-1 text-xs hover:no-underline justify-center [&[data-state=open]>svg]:hidden [&[data-state=closed]>svg]:hidden">
-              <span className="font-normal">{dayClasses.length} clases</span>
-            </AccordionTrigger>
-            <AccordionContent className="space-y-1 pb-1">
-              {dayClasses.map(cls => {
-                const remaining = cls.totalSpots - cls.bookedSpots
-                const isFull = remaining <= 0
-                const isSelected = selectedClasses.some(sc => sc.id === cls.id)
-                const isDisabled = isFull || !packSize
-  
-                return (
-                  <button
-                    key={cls.id}
-                    disabled={isDisabled}
-                    onClick={() => onSelectClass(cls)}
-                    className={cn(
-                      "w-full text-left p-1.5 rounded-md text-xs transition-all duration-200",
-                      "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
-                      isSelected ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-primary/10",
-                      isDisabled && "opacity-50 cursor-not-allowed bg-secondary"
-                    )}
-                  >
-                    <p className="font-semibold">{cls.name}</p>
-                    <div className="flex justify-between items-center">
-                      <p>{cls.time}</p>
-                      <div className="flex items-center gap-1">
-                        <p>{remaining > 0 ? `${remaining} libres` : "Completo"}</p>
-                        {isSelected && <Check className="w-4 h-4" />}
+      <time dateTime={date.toISOString()} className={cn("self-start text-sm", isDayInPast && "text-muted-foreground line-through")}>
+        {date.getDate()}
+      </time>
+      {hasClasses && !isDayInPast && (
+        <div className="mt-auto">
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="item-1" className="border-none">
+              <AccordionTrigger className="-my-1 p-1 text-xs hover:no-underline justify-center [&[data-state=open]>svg]:hidden [&[data-state=closed]>svg]:hidden">
+                <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary/20 text-primary hover:bg-primary/30">
+                    {dayClasses.length} {dayClasses.length > 1 ? 'clases' : 'clase'}
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="space-y-1 pb-1 mt-1">
+                {dayClasses.map(cls => {
+                  const remaining = cls.totalSpots - cls.bookedSpots;
+                  const isFull = remaining <= 0;
+                  const isSelected = selectedClasses.some(sc => sc.id === cls.id);
+                  const isDisabled = isFull || !packSize;
+
+                  return (
+                    <button
+                      key={cls.id}
+                      disabled={isDisabled}
+                      onClick={() => onSelectClass(cls)}
+                      className={cn(
+                        "w-full text-left p-1.5 rounded-md text-xs transition-all duration-200",
+                        "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
+                        isSelected ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-primary/10",
+                        isDisabled && "opacity-50 cursor-not-allowed bg-secondary"
+                      )}
+                    >
+                      <p className="font-semibold">{cls.name}</p>
+                      <div className="flex justify-between items-center">
+                        <p>{cls.time}</p>
+                        <div className="flex items-center gap-1">
+                          <p>{isFull ? "Completo" : `${remaining} libres`}</p>
+                          {isSelected && <Check className="w-3 h-3" />}
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
+                    </button>
+                  );
+                })}
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
       )}
     </div>
-  )
+  );
+}
+
+// --- Success Screen Component ---
+function SuccessScreen({ booking, onNewBooking }: { booking: Booking; onNewBooking: () => void }) {
+  return (
+      <div className="flex flex-col items-center justify-center text-center py-10 sm:py-16">
+          <Card className="w-full max-w-2xl p-6 sm:p-8 shadow-lg animate-in fade-in-50 zoom-in-95">
+              <CardHeader>
+                  <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto" />
+                  <CardTitle className="text-3xl mt-4">¡Reserva Confirmada!</CardTitle>
+                  <CardDescription className="text-lg mt-2 text-balance">
+                      Gracias, <span className="font-semibold text-primary">{booking.student.name}</span>. Tu reserva se ha completado con éxito.
+                  </CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <p className="mb-4 text-muted-foreground">Recibirás un correo de confirmación en <strong className="text-foreground">{booking.student.email}</strong> con los detalles.</p>
+                  <Separator className="my-6" />
+                  <h3 className="font-semibold text-xl mb-4 text-left">Resumen de tu bono de {booking.packSize} clases:</h3>
+                  <ul className="space-y-3 text-left">
+                      {booking.classes.map((cls: AeroClass) => (
+                          <li key={cls.id} className="flex items-center justify-between bg-secondary p-3 rounded-lg">
+                              <div>
+                                  <p className="font-semibold">{cls.name} - {new Date(cls.date).toLocaleDateString('es-ES', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+                                  <p className="text-sm text-muted-foreground">a las {cls.time} con {cls.teacher}</p>
+                              </div>
+                              <CalendarCheck className="h-5 w-5 text-primary"/>
+                          </li>
+                      ))}
+                  </ul>
+              </CardContent>
+              <CardFooter>
+                  <Button size="lg" className="w-full text-lg mt-4" onClick={onNewBooking}>
+                      Hacer una nueva reserva
+                  </Button>
+              </CardFooter>
+          </Card>
+      </div>
+  );
 }
 
 
 // --- Main Application Component ---
 export function AeroClassManager() {
+  const [bookingState, setBookingState] = useState<'form' | 'submitting' | 'success'>('form');
+  const [lastBooking, setLastBooking] = useState<Booking | null>(null);
+
   const [packSize, setPackSize] = useState<number | null>(null)
   const [selectedClasses, setSelectedClasses] = useState<AeroClass[]>([])
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -157,38 +210,47 @@ export function AeroClassManager() {
         return;
     }
 
+    setBookingState('submitting');
+
     const student = { name, email, phone };
     const classIds = selectedClasses.map(c => ({ id: c.id }));
 
     const result = await createBooking(student, classIds, packSize);
 
-    if (result.success) {
-        toast({
-            title: `¡Reserva Confirmada, ${name}!`,
-            description: `Has reservado con éxito ${selectedClasses.length} clases. Recibirás la confirmación en ${email}.`,
-        });
+    if (result.success && result.booking) {
+        setLastBooking(result.booking);
+        setBookingState('success');
         
-        // Refresh classes data after booking
+        // Refresh classes data for the next booking
         const fetchedClasses = await fetchClasses();
         const classesWithDates = fetchedClasses.map(c => ({...c, date: new Date(c.date)}));
         setClasses(classesWithDates);
-        
-        setSelectedClasses([]);
-        setName("");
-        setEmail("");
-        setPhone("");
-        setPackSize(null);
     } else {
         toast({
             variant: "destructive",
             title: "Error en la reserva",
             description: result.error || "No se pudo completar la reserva. Inténtalo de nuevo."
         });
+        setBookingState('form');
     }
+  }
+
+  const handleNewBooking = () => {
+    setBookingState('form');
+    setSelectedClasses([]);
+    setName("");
+    setEmail("");
+    setPhone("");
+    setPackSize(null);
+    setLastBooking(null);
   }
 
   const remainingSlots = packSize !== null ? packSize - selectedClasses.length : 0;
   const isBookingDisabled = !packSize || !name || !email || !phone || selectedClasses.length !== packSize;
+
+  if (bookingState === 'success' && lastBooking) {
+    return <SuccessScreen booking={lastBooking} onNewBooking={handleNewBooking} />
+  }
 
   return (
     <div className="space-y-6">
@@ -206,7 +268,7 @@ export function AeroClassManager() {
                 <CardDescription>Selecciona un bono mensual para empezar a reservar.</CardDescription>
               </CardHeader>
               <CardContent>
-                <RadioGroup onValueChange={handleSelectPack} value={packSize?.toString() ?? ''}>
+                <RadioGroup onValueChange={handleSelectPack} value={packSize?.toString() ?? ''} disabled={bookingState === 'submitting'}>
                     <div className="flex items-center space-x-2 p-4 rounded-md has-[:checked]:bg-accent has-[:checked]:shadow-inner">
                         <RadioGroupItem value="4" id="p4" />
                         <Label htmlFor="p4" className="text-base flex-grow cursor-pointer">4 Clases / mes</Label>
@@ -231,15 +293,15 @@ export function AeroClassManager() {
                 <CardContent className="space-y-4">
                     <div className="space-y-2">
                         <Label htmlFor="name">Nombre y Apellido</Label>
-                        <Input id="name" placeholder="Tu nombre completo" value={name} onChange={(e) => setName(e.target.value)} />
+                        <Input id="name" placeholder="Tu nombre completo" value={name} onChange={(e) => setName(e.target.value)} disabled={bookingState === 'submitting'} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="email">Correo Electrónico</Label>
-                        <Input id="email" type="email" placeholder="tu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                        <Input id="email" type="email" placeholder="tu@email.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={bookingState === 'submitting'} />
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="phone">Teléfono</Label>
-                        <Input id="phone" type="tel" placeholder="600 123 456" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                        <Input id="phone" type="tel" placeholder="600 123 456" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={bookingState === 'submitting'} />
                     </div>
                 </CardContent>
             </Card>
@@ -281,6 +343,7 @@ export function AeroClassManager() {
                               cell: "w-full text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
                               day: "w-full h-full",
                             }}
+                            disabled={bookingState === 'submitting'}
                         />
                     )}
                 </CardContent>
@@ -310,7 +373,7 @@ export function AeroClassManager() {
                                     <p className="font-semibold">{cls.name} - {cls.date.toLocaleDateString('es-ES', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
                                     <p className="text-sm text-muted-foreground">a las {cls.time}</p>
                                 </div>
-                                <Button variant="ghost" size="icon" onClick={() => handleRemoveClass(cls.id)} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full h-8 w-8">
+                                <Button variant="ghost" size="icon" onClick={() => handleRemoveClass(cls.id)} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full h-8 w-8" disabled={bookingState === 'submitting'}>
                                     <Trash2 className="h-4 w-4"/>
                                     <span className="sr-only">Quitar</span>
                                 </Button>
@@ -329,13 +392,17 @@ export function AeroClassManager() {
                         size="lg" 
                         className="w-full text-lg" 
                         onClick={handleConfirmBooking}
-                        disabled={isBookingDisabled}
+                        disabled={isBookingDisabled || bookingState === 'submitting'}
                     >
-                        <Check className="mr-2 h-5 w-5"/>
-                        { isBookingDisabled && remainingSlots > 0 
-                            ? `Selecciona ${remainingSlots} clase${remainingSlots > 1 ? 's' : ''} más`
-                            : `Confirmar Reserva (${selectedClasses.length})`
-                        }
+                        {bookingState === 'submitting' ? (
+                            <><Loader2 className="mr-2 h-5 w-5 animate-spin"/> Confirmando...</>
+                        ) : (
+                            <><Check className="mr-2 h-5 w-5"/>
+                            { isBookingDisabled && remainingSlots > 0 
+                                ? `Selecciona ${remainingSlots} clase${remainingSlots > 1 ? 's' : ''} más`
+                                : `Confirmar Reserva (${selectedClasses.length})`
+                            }</>
+                        )}
                     </Button>
                 </CardFooter>
             )}
