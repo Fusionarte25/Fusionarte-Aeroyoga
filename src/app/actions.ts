@@ -1,6 +1,6 @@
 'use server'
 
-import { bookingService } from '@/lib/data'
+import * as bookingService from '@/lib/data'
 import type { AeroClass, Student } from '@/lib/types'
 
 export async function fetchClasses() {
