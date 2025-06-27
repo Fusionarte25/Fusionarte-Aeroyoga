@@ -31,10 +31,13 @@ const generateMockClasses = (month: Date): AeroClass[] => {
   
   for (let day = 1; day <= daysInMonth; day++) {
     const date = new Date(year, monthIndex, day);
-    const dayOfWeek = date.getDay();
+    const dayOfWeek = date.getDay(); // 0 = Domingo, 1 = Lunes, ... , 6 = Sábado
 
     schedule.forEach(scheduledClass => {
-      if (dayOfWeek === scheduledClass.day) {
+      // Ajuste: si getDay() devuelve 0 (Domingo), lo mapeamos a 7 para que coincida con una posible lógica de 1-7
+      const effectiveDayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
+      
+      if (effectiveDayOfWeek === scheduledClass.day) {
         classes.push({
           id: `class-${year}-${monthIndex + 1}-${day}-${scheduledClass.time.replace(':', '')}`,
           name: scheduledClass.name,
@@ -59,6 +62,7 @@ class BookingService {
 
   private constructor() {
     const today = new Date();
+    // Default active month is the current month
     this.activeBookingMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     
     // Generate classes for a few months around today to have data available
@@ -105,12 +109,18 @@ class BookingService {
             bookedClassIndexes.push(classIndex);
             fullClassDetails.push(this.classes[classIndex]);
         } else {
-            console.warn(`Class ${selectedClass.id} is full or does not exist.`);
+             // Rollback if a class is not bookable
+            bookedClassIndexes.forEach(idx => {
+                this.classes[idx].bookedSpots--;
+            });
+            const failedClass = this.classes.find(c => c.id === selectedClass.id);
+            if (!failedClass) throw new Error(`La clase seleccionada ya no existe. Por favor, refresca la página.`);
+            throw new Error(`La clase ${failedClass.name} del ${failedClass.date.toLocaleDateString()} a las ${failedClass.time} ya no tiene plazas.`);
         }
     });
 
     if (fullClassDetails.length !== selectedClasses.length) {
-        // Revert booking spots
+        // This case should ideally not be hit due to the check above, but as a safeguard:
         bookedClassIndexes.forEach(classIndex => {
             this.classes[classIndex].bookedSpots--;
         });
@@ -122,7 +132,7 @@ class BookingService {
     const newBooking: Booking = {
         id: bookingId,
         student,
-        classes: fullClassDetails,
+        classes: fullClassDetails.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()),
         bookingDate: new Date(),
         packSize,
         price,
@@ -149,6 +159,7 @@ class BookingService {
       oldClassIds.forEach(id => { spotChanges[id] = (spotChanges[id] || 0) - 1; });
       newIds.forEach(id => { spotChanges[id] = (spotChanges[id] || 0) + 1; });
 
+      // First, check if all new spots are available BEFORE making changes
       for (const classId in spotChanges) {
           if (spotChanges[classId] > 0) { // Only check for increments
               const classToBook = this.classes.find(c => c.id === classId);
@@ -168,6 +179,7 @@ class BookingService {
         throw new Error("Una o más de las clases seleccionadas no se encontraron.");
       }
       
+      // If all checks passed, apply the changes
       for (const classId in spotChanges) {
           const classIndex = this.classes.findIndex(c => c.id === classId);
           if (classIndex !== -1) {
@@ -186,7 +198,7 @@ class BookingService {
 
     // Initialize map with all classes to show empty ones too
     this.classes.forEach(cls => {
-         classMap.set(cls.id, { classDetails: cls, attendees: [] });
+         classMap.set(cls.id, { classDetails: JSON.parse(JSON.stringify(cls)), attendees: [] });
     });
     
     // Populate with attendees from bookings

@@ -5,18 +5,12 @@ import type { AeroClass, Student } from '@/lib/types'
 
 export async function fetchClasses() {
   const allClasses = bookingService.getClasses();
-  const activeMonth = bookingService.getActiveBookingMonth();
-  const activeYear = activeMonth.getFullYear();
-  const activeMonthIndex = activeMonth.getMonth();
-
   const today = new Date();
   today.setHours(0,0,0,0);
 
   return allClasses.filter(c => {
     const classDate = new Date(c.date);
-    return classDate.getFullYear() === activeYear 
-        && classDate.getMonth() === activeMonthIndex
-        && classDate >= today;
+    return classDate >= today;
   });
 }
 
@@ -25,7 +19,8 @@ export async function getActiveBookingMonth() {
 }
 
 export async function setActiveBookingMonth(year: number, month: number) {
-    return bookingService.setActiveBookingMonth(year, month);
+    bookingService.setActiveBookingMonth(year, month);
+    return bookingService.getActiveBookingMonth();
 }
 
 export async function createBooking(student: Student, selectedClasses: Pick<AeroClass, 'id'>[], packSize: number) {
@@ -49,9 +44,11 @@ export async function updateBookingClasses(bookingId: string, newClassIds: Pick<
 export async function fetchAdminData() {
     const bookings = bookingService.getBookings();
     const classesWithAttendees = bookingService.getClassesWithAttendees();
+    const allClasses = bookingService.getClasses();
     return { 
         bookings: JSON.parse(JSON.stringify(bookings)), 
-        classesWithAttendees: JSON.parse(JSON.stringify(classesWithAttendees)) 
+        classesWithAttendees: JSON.parse(JSON.stringify(classesWithAttendees)),
+        allClasses: JSON.parse(JSON.stringify(allClasses)),
     };
 }
 
@@ -134,15 +131,18 @@ export async function getStudentCsv() {
 
 export async function getClassCsv() {
     const classesWithAttendees = bookingService.getClassesWithAttendees();
-    const flatData = classesWithAttendees.map(c => ({
-        className: c.classDetails.name,
-        date: new Date(c.classDetails.date),
-        time: c.classDetails.time,
-        teacher: c.classDetails.teacher,
-        attendees: c.attendees,
-        booked: c.classDetails.bookedSpots,
-        total: c.classDetails.totalSpots,
-    }));
+    const flatData = classesWithAttendees
+        .filter(c => new Date(c.classDetails.date) >= new Date()) // Optional: only future classes
+        .map(c => ({
+            className: c.classDetails.name,
+            date: new Date(c.classDetails.date),
+            time: c.classDetails.time,
+            teacher: c.classDetails.teacher,
+            attendees: c.attendees,
+            booked: c.classDetails.bookedSpots,
+            total: c.classDetails.totalSpots,
+        }));
+
     const headers = {
         className: 'Clase',
         date: 'Fecha',

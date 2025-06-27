@@ -25,8 +25,9 @@ function CustomDay(props: DayProps & {
   selectedClasses: AeroClass[];
   onSelectClass: (cls: AeroClass) => void;
   packSize: number | null;
+  activeBookingMonth: Date;
 }) {
-  const { date, displayMonth, allClasses, onSelectClass, selectedClasses, packSize } = props;
+  const { date, displayMonth, allClasses, onSelectClass, selectedClasses, packSize, activeBookingMonth } = props;
   const dayClasses = allClasses.filter(c => c.date.toDateString() === date.toDateString());
 
   if (!displayMonth) return <></>;
@@ -37,16 +38,19 @@ function CustomDay(props: DayProps & {
   today.setHours(0,0,0,0);
   const isDayInPast = date < today;
 
+  const isBookableMonth = date.getFullYear() === activeBookingMonth.getFullYear() && date.getMonth() === activeBookingMonth.getMonth();
+
   return (
     <div
       className={cn(
         "relative flex h-full min-h-[110px] w-full flex-col p-1.5 border-t transition-colors",
         isDayInPast ? "bg-muted/50" : "hover:bg-accent",
-        hasClasses && !isDayInPast && "bg-primary/10",
+        hasClasses && !isDayInPast && !isBookableMonth && "bg-muted/70",
+        hasClasses && !isDayInPast && isBookableMonth && "bg-primary/10",
         isSelectedDay && "bg-primary/20 ring-2 ring-primary z-10"
       )}
     >
-      <time dateTime={date.toISOString()} className={cn("self-start text-sm", isDayInPast && "text-muted-foreground line-through")}>
+      <time dateTime={date.toISOString()} className={cn("self-start text-sm", isDayInPast && "text-muted-foreground line-through", !isBookableMonth && "text-muted-foreground")}>
         {date.getDate()}
       </time>
       {hasClasses && !isDayInPast && (
@@ -54,7 +58,10 @@ function CustomDay(props: DayProps & {
           <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="item-1" className="border-none">
               <AccordionTrigger className="-my-1 p-1 text-xs hover:no-underline justify-center [&[data-state=open]>svg]:hidden [&[data-state=closed]>svg]:hidden">
-                <div className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/90">
+                <div className={cn(
+                    "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                    isBookableMonth ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90" : "border-transparent bg-secondary text-secondary-foreground"
+                )}>
                     {dayClasses.length} {dayClasses.length > 1 ? 'clases' : 'clase'}
                 </div>
               </AccordionTrigger>
@@ -63,7 +70,7 @@ function CustomDay(props: DayProps & {
                   const remaining = cls.totalSpots - cls.bookedSpots;
                   const isFull = remaining <= 0;
                   const isSelected = selectedClasses.some(sc => sc.id === cls.id);
-                  const isDisabled = isFull || !packSize;
+                  const isDisabled = isFull || !packSize || !isBookableMonth;
 
                   return (
                     <button
@@ -331,7 +338,7 @@ export function AeroClassManager() {
                     {activeBookingMonth ? (
                         <CardDescription>
                             Mes de inscripción: <span className="font-semibold text-primary">{activeBookingMonth.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}</span>.
-                            Necesitas tus datos y un bono para poder seleccionar.
+                            Puedes navegar por el calendario, pero solo puedes reservar en el mes activo.
                         </CardDescription>
                     ) : (
                         <CardDescription>Cargando calendario...</CardDescription>
@@ -348,8 +355,7 @@ export function AeroClassManager() {
                             mode="single"
                             month={currentMonth}
                             onMonthChange={setCurrentMonth}
-                            fromMonth={activeBookingMonth}
-                            toMonth={activeBookingMonth}
+                            fromMonth={new Date()}
                             onDayClick={() => {}}
                             components={{ Day: (props: DayProps) => (
                               <CustomDay 
@@ -358,6 +364,7 @@ export function AeroClassManager() {
                                 selectedClasses={selectedClasses}
                                 onSelectClass={handleSelectClass}
                                 packSize={packSize}
+                                activeBookingMonth={activeBookingMonth}
                               />
                             )}}
                             className="p-0"
@@ -369,9 +376,6 @@ export function AeroClassManager() {
                               cell: "w-full text-center text-sm p-0 relative focus-within:relative focus-within:z-20",
                               day: "w-full h-full",
                               caption_label: "text-lg font-bold",
-                              nav_button: cn(
-                                "h-8 w-8 bg-transparent p-0 opacity-70 hover:opacity-100"
-                              ),
                             }}
                             disabled={bookingState === 'submitting'}
                         />

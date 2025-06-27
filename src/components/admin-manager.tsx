@@ -27,7 +27,7 @@ function ClassForm({ classData, onSave, onCancel }: {
     onCancel: () => void;
 }) {
     const [formData, setFormData] = useState({
-        name: classData?.name || '',
+        name: classData?.name || 'Aeroyoga',
         date: classData?.date ? new Date(classData.date).toISOString().split('T')[0] : '',
         time: classData?.time || '',
         totalSpots: classData?.totalSpots || 7,
@@ -142,6 +142,7 @@ function EditBookingForm({ booking, allClasses, onSave, onCancel }: {
 function AdminDashboard() {
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [classesWithAttendees, setClassesWithAttendees] = useState<ClassWithAttendees[]>([]);
+    const [allClasses, setAllClasses] = useState<AeroClass[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('students');
     const { toast } = useToast();
@@ -151,7 +152,6 @@ function AdminDashboard() {
     const [classToDelete, setClassToDelete] = useState<AeroClass | null>(null);
     const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
     const [activeMonth, setActiveMonth] = useState<Date | null>(null);
-
 
     const loadData = useCallback(async () => {
         setIsLoading(true);
@@ -170,9 +170,14 @@ function AdminDashboard() {
                     date: new Date(c.classDetails.date)
                 }
             }));
+            const deserializedAllClasses = data.allClasses.map((c: any) => ({
+                ...c,
+                date: new Date(c.date)
+            }));
 
             setBookings(deserializedBookings);
             setClassesWithAttendees(deserializedClasses);
+            setAllClasses(deserializedAllClasses);
             setActiveMonth(new Date(month));
         } catch (error) {
             console.error("Failed to load admin data", error);
@@ -193,9 +198,9 @@ function AdminDashboard() {
     const handleMonthChange = async (offset: number) => {
         if (!activeMonth) return;
         const newMonthDate = new Date(activeMonth.getFullYear(), activeMonth.getMonth() + offset, 1);
-        await setActiveBookingMonth(newMonthDate.getFullYear(), newMonthDate.getMonth());
-        setActiveMonth(newMonthDate);
-        toast({ title: "Mes actualizado", description: `Ahora las alumnas reservarán para ${newMonthDate.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}.` });
+        const newActiveMonth = await setActiveBookingMonth(newMonthDate.getFullYear(), newMonthDate.getMonth());
+        setActiveMonth(new Date(newActiveMonth));
+        toast({ title: "Mes actualizado", description: `Ahora las alumnas reservarán para ${new Date(newActiveMonth).toLocaleString('es-ES', { month: 'long', year: 'numeric' })}.` });
     };
 
     const handleOpenAddModal = () => {
@@ -355,7 +360,7 @@ function AdminDashboard() {
                     <Card>
                         <CardHeader><CardTitle>Listado de Asistencia por Clase</CardTitle></CardHeader>
                         <CardContent className="space-y-4">
-                            {classesWithAttendees.length > 0 ? classesWithAttendees.map(({ classDetails, attendees }) => (
+                            {classesWithAttendees.length > 0 ? classesWithAttendees.filter(cwa => new Date(cwa.classDetails.date) > new Date(Date.now() - 86400000)).map(({ classDetails, attendees }) => (
                                 <Card key={classDetails.id}>
                                     <CardHeader>
                                         <CardTitle>{classDetails.name} - {new Date(classDetails.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} a las {classDetails.time}</CardTitle>
@@ -389,7 +394,7 @@ function AdminDashboard() {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {classesWithAttendees.map(({ classDetails }) => (
+                                    {classesWithAttendees.filter(cwa => new Date(cwa.classDetails.date) > new Date(Date.now() - 86400000)).map(({ classDetails }) => (
                                         <TableRow key={classDetails.id}>
                                             <TableCell className="font-medium">{classDetails.name}</TableCell>
                                             <TableCell>{new Date(classDetails.date).toLocaleDateString('es-ES')} - {classDetails.time}</TableCell>
@@ -441,7 +446,7 @@ function AdminDashboard() {
                     {editingBooking && (
                         <EditBookingForm 
                             booking={editingBooking}
-                            allClasses={classesWithAttendees.map(c => c.classDetails)}
+                            allClasses={allClasses}
                             onSave={handleSaveBookingChanges}
                             onCancel={() => setEditingBooking(null)}
                         />
