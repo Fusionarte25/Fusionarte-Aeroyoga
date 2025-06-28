@@ -44,7 +44,7 @@ function CustomDay(props: DayProps & {
   return (
     <div
       className={cn(
-        "relative flex h-full min-h-[100px] sm:min-h-[110px] w-full flex-col p-1.5 border-t transition-colors",
+        "relative flex h-full min-h-[90px] sm:min-h-[110px] w-full flex-col p-1.5 border-t transition-colors",
         isDayInPast ? "bg-muted/50" : "hover:bg-accent",
         hasClasses && !isDayInPast && !isBookableMonth && "bg-secondary text-muted-foreground",
         hasClasses && !isDayInPast && isBookableMonth && "bg-primary/10",

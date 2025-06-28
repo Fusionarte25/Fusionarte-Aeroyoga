@@ -403,15 +403,25 @@ function AdminDashboard() {
             </Card>
 
             <Tabs defaultValue="students" className="w-full" onValueChange={setActiveTab}>
-                <div className="flex flex-col sm:flex-row flex-wrap gap-4 justify-between items-start sm:items-center mb-4">
-                    <TabsList className="self-start">
-                        <TabsTrigger value="students">Reservas</TabsTrigger>
-                        <TabsTrigger value="classes">Asistencia</TabsTrigger>
-                        <TabsTrigger value="manage-classes">Gestionar Clases</TabsTrigger>
-                        <TabsTrigger value="manage-packs">Gestionar Bonos</TabsTrigger>
-                        <TabsTrigger value="stats">Estadísticas</TabsTrigger>
-                    </TabsList>
-                    {(activeTab === 'students' || activeTab === 'classes' || activeTab === 'manage-classes') && (<div className="flex items-center gap-4"><MonthNavigator date={displayDate} onDateChange={setDisplayDate} /><Button onClick={handleExport} variant="outline" disabled={activeTab === 'manage-classes'}><Download className="mr-2 h-4 w-4" /> Exportar Vista</Button></div>)}
+                <div className="flex flex-col gap-4 mb-4">
+                    <div className="w-full overflow-x-auto pb-1">
+                        <TabsList>
+                            <TabsTrigger value="students">Reservas</TabsTrigger>
+                            <TabsTrigger value="classes">Asistencia</TabsTrigger>
+                            <TabsTrigger value="manage-classes">Gestionar Clases</TabsTrigger>
+                            <TabsTrigger value="manage-packs">Gestionar Bonos</TabsTrigger>
+                            <TabsTrigger value="stats">Estadísticas</TabsTrigger>
+                        </TabsList>
+                    </div>
+                    
+                    {(activeTab === 'students' || activeTab === 'classes' || activeTab === 'manage-classes') && (
+                        <div className="flex flex-col sm:flex-row items-center sm:justify-end gap-4">
+                            <MonthNavigator date={displayDate} onDateChange={setDisplayDate} />
+                            <Button onClick={handleExport} variant="outline" className="w-full sm:w-auto" disabled={activeTab === 'manage-classes'}>
+                                <Download className="mr-2 h-4 w-4" /> Exportar Vista
+                            </Button>
+                        </div>
+                    )}
                 </div>
                 <TabsContent value="students">
                     <Card>
