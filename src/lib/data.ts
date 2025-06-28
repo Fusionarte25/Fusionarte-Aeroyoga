@@ -52,7 +52,7 @@ type DataStore = {
   bookings: Booking[];
   activeBookingMonth: Date | null;
   classPacks: ClassPack[];
-  customPackPricePerClass: number;
+  customPackPrices: Record<string, number>;
 };
 
 // Use the global object to persist the store across hot reloads in development
@@ -76,7 +76,10 @@ if (!global.dataStore) {
         { id: '8', name: '8 Clases / mes', classes: 8, price: 110 },
         { id: '12', name: '12 Clases / mes', classes: 12, price: 150 },
     ],
-    customPackPricePerClass: 18,
+    customPackPrices: Array.from({ length: 12 }, (_, i) => i + 1).reduce((acc, val) => {
+        acc[val.toString()] = val * 18; // Default to 18€ per class
+        return acc;
+    }, {} as Record<string, number>),
   };
 }
 
@@ -107,7 +110,7 @@ export function getBookings(): Booking[] {
   return store.bookings.sort((a, b) => new Date(b.bookingDate).getTime() - new Date(a.bookingDate).getTime());
 }
 
-export function addBooking(student: Student, selectedClasses: Pick<AeroClass, 'id'>[], packSize: number): Booking {
+export function addBooking(student: Student, selectedClasses: Pick<AeroClass, 'id'>[], packSize: number, price: number): Booking {
   const bookingId = `booking-${Date.now()}-${Math.random()}`;
   const fullClassDetails: AeroClass[] = [];
   
@@ -140,13 +143,6 @@ export function addBooking(student: Student, selectedClasses: Pick<AeroClass, 'i
       store.classes[classIndex].bookedSpots += count;
   }
   
-  const pack = store.classPacks.find(p => p.classes === packSize);
-  const price = pack ? pack.price : packSize * store.customPackPricePerClass;
-  
-  if (price === undefined || price === null) {
-      throw new Error(`No se pudo calcular el precio para un bono de ${packSize} clases.`);
-  }
-
   const newBooking: Booking = {
       id: bookingId,
       student,
@@ -337,14 +333,18 @@ export function getTeacherStats(year: number, month: number) {
 
 
 // Custom Pack Price Management
-export function getCustomPackPrice(): number {
-    return store.customPackPricePerClass;
+export function getCustomPackPrices(): Record<string, number> {
+    return store.customPackPrices;
 }
 
-export function setCustomPackPrice(price: number): number {
-    if (price < 0) throw new Error("El precio no puede ser negativo.");
-    store.customPackPricePerClass = price;
-    return store.customPackPricePerClass;
+export function updateCustomPackPrices(prices: Record<string, number>): Record<string, number> {
+    for (const key in prices) {
+        if (isNaN(parseInt(key)) || isNaN(prices[key]) || prices[key] < 0) {
+            throw new Error("Invalid price data provided.");
+        }
+    }
+    store.customPackPrices = { ...store.customPackPrices, ...prices };
+    return store.customPackPrices;
 }
 
 // Pack Management

@@ -18,7 +18,8 @@ import { Separator } from "@/components/ui/separator"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { createBooking, fetchClasses, getActiveBookingMonth, fetchPacks, getCustomPackPrice } from "@/app/actions"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { createBooking, fetchClasses, getActiveBookingMonth, fetchPacks, getCustomPackPrices } from "@/app/actions"
 
 // --- Custom Day Component for Calendar ---
 function CustomDay(props: DayProps & {
@@ -197,8 +198,8 @@ export function AeroClassManager() {
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null);
   const [packSize, setPackSize] = useState<number | null>(null);
   const [totalPrice, setTotalPrice] = useState<number | null>(null);
-  const [customClassCount, setCustomClassCount] = useState<string>("");
-  const [customPricePerClass, setCustomPricePerClass] = useState<number | null>(null);
+  const [customPackSelection, setCustomPackSelection] = useState<string>("");
+  const [customPackPrices, setCustomPackPrices] = useState<Record<string, number> | null>(null);
 
   const [selectedClasses, setSelectedClasses] = useState<AeroClass[]>([])
   const [currentMonth, setCurrentMonth] = useState(new Date())
@@ -215,16 +216,16 @@ export function AeroClassManager() {
     const loadInitialData = async () => {
         setIsLoading(true);
         try {
-            const [fetchedClasses, fetchedMonth, fetchedPacks, fetchedCustomPrice] = await Promise.all([
+            const [fetchedClasses, fetchedMonth, fetchedPacks, fetchedCustomPrices] = await Promise.all([
                 fetchClasses(),
                 getActiveBookingMonth(),
                 fetchPacks(),
-                getCustomPackPrice(),
+                getCustomPackPrices(),
             ]);
             const classesWithDates = fetchedClasses.map(c => ({...c, date: new Date(c.date)}));
             setClasses(classesWithDates);
             setClassPacks(fetchedPacks);
-            setCustomPricePerClass(fetchedCustomPrice);
+            setCustomPackPrices(fetchedCustomPrices);
             
             const activeMonthDate = fetchedMonth ? new Date(fetchedMonth) : null;
             setActiveBookingMonth(activeMonthDate);
@@ -249,16 +250,11 @@ export function AeroClassManager() {
 
   const handlePackSelectionChange = (value: string) => {
     setSelectedPackId(value);
-
+    setCustomPackSelection(""); // Reset custom selection
+    
     if (value === 'custom') {
-        const currentCount = parseInt(customClassCount, 10);
-        if (!isNaN(currentCount) && currentCount > 0 && customPricePerClass) {
-            setPackSize(currentCount);
-            setTotalPrice(currentCount * customPricePerClass);
-        } else {
-            setPackSize(null);
-            setTotalPrice(null);
-        }
+        setPackSize(null);
+        setTotalPrice(null);
     } else {
         const selectedPack = classPacks.find(p => p.id === value);
         if (selectedPack) {
@@ -267,22 +263,21 @@ export function AeroClassManager() {
         }
     }
   }
-
-  const handleCustomCountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const countValue = e.target.value;
-      setCustomClassCount(countValue);
-
-      if (selectedPackId === 'custom') {
-          const newCount = parseInt(countValue, 10);
-          if (!isNaN(newCount) && newCount > 0 && customPricePerClass) {
+  
+  const handleCustomPackSelection = (value: string) => {
+      setCustomPackSelection(value);
+      if (selectedPackId === 'custom' && customPackPrices) {
+          const newCount = parseInt(value, 10);
+          if (!isNaN(newCount) && newCount > 0) {
               setPackSize(newCount);
-              setTotalPrice(newCount * customPricePerClass);
+              setTotalPrice(customPackPrices[value]);
           } else {
               setPackSize(null);
               setTotalPrice(null);
           }
       }
   }
+
 
   useEffect(() => {
     if (packSize !== null && selectedClasses.length > packSize) {
@@ -323,7 +318,7 @@ export function AeroClassManager() {
   }
   
   const handleConfirmBooking = async () => {
-    if (!packSize) return;
+    if (!packSize || !totalPrice) return;
 
     if (selectedClasses.length !== packSize) {
         toast({ variant: "destructive", title: "Clases insuficientes", description: `Debes seleccionar exactamente ${packSize} clases para tu bono.` })
@@ -339,7 +334,7 @@ export function AeroClassManager() {
     const student = { name, email, phone };
     const classIds = selectedClasses.map(c => ({ id: c.id }));
 
-    const result = await createBooking(student, classIds, packSize);
+    const result = await createBooking(student, classIds, packSize, totalPrice);
 
     if (result.success && result.booking) {
         const deserializedBooking = {
@@ -372,7 +367,7 @@ export function AeroClassManager() {
     setPackSize(null);
     setSelectedPackId(null);
     setTotalPrice(null);
-    setCustomClassCount("");
+    setCustomPackSelection("");
     setLastBooking(null);
   }
 
@@ -434,19 +429,23 @@ export function AeroClassManager() {
                       </div>
                       {selectedPackId === 'custom' && (
                           <div className="pl-8 pt-2 space-y-2 animate-in fade-in-50">
-                              <Label htmlFor="custom-count">Número de clases</Label>
-                              <Input 
-                                id="custom-count" 
-                                type="number" 
-                                placeholder="Ej: 5"
-                                value={customClassCount}
-                                onChange={handleCustomCountChange}
-                                className="max-w-[120px]"
-                                disabled={bookingState === 'submitting'}
-                              />
-                              {totalPrice !== null && totalPrice > 0 && (
-                                <p className="text-sm font-semibold text-primary">Precio Total: {totalPrice.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</p>
-                              )}
+                              <Label>Número de clases</Label>
+                              <Select
+                                  value={customPackSelection}
+                                  onValueChange={handleCustomPackSelection}
+                                  disabled={bookingState === 'submitting'}
+                              >
+                                  <SelectTrigger className="max-w-[180px]">
+                                      <SelectValue placeholder="Selecciona" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                      {customPackPrices && Array.from({ length: 12 }, (_, i) => i + 1).map(num => (
+                                          <SelectItem key={num} value={num.toString()}>
+                                              {num} {num > 1 ? 'clases' : 'clase'} - {customPackPrices[num.toString()]}€
+                                          </SelectItem>
+                                      ))}
+                                  </SelectContent>
+                              </Select>
                           </div>
                       )}
                   </RadioGroup>
@@ -520,7 +519,7 @@ export function AeroClassManager() {
                   <CardDescription>
                       Has seleccionado <span className="font-bold text-primary">{selectedClasses.length}</span> de <span className="font-bold text-primary">{packSize}</span> clases.
                       {remainingSlots > 0 ? ` Te quedan ${remainingSlots} por seleccionar.` : ' ¡Lista para confirmar!'}
-                      {totalPrice !== null && <span className="block mt-1">Precio total estimado: <span className="font-bold text-primary">{totalPrice.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></span>}
+                      {totalPrice !== null && <span className="block mt-1">Precio total: <span className="font-bold text-primary">{totalPrice.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</span></span>}
                   </CardDescription>
               ) : (
                 <CardDescription>Selecciona un bono y tus clases para ver aquí el resumen.</CardDescription>

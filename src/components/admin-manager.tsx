@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Download, Lock, LogIn, PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight, BarChart2, DollarSign, Settings, Loader2 } from 'lucide-react';
-import { addClass, addRecurringClasses, deleteClass, fetchAdminData, getActiveBookingMonth, getClassCsv, getStudentCsv, setActiveBookingMonth, updateClass, updateFullBooking, getTeacherStats, fetchPacks, updateBookingStatus, addClassPack, updateClassPack, deleteClassPack, getCustomPackPrice, setCustomPackPrice } from '@/app/actions';
+import { addClass, addRecurringClasses, deleteClass, fetchAdminData, getActiveBookingMonth, getClassCsv, getStudentCsv, setActiveBookingMonth, updateClass, updateFullBooking, getTeacherStats, fetchPacks, updateBookingStatus, addClassPack, updateClassPack, deleteClassPack, getCustomPackPrices, updateCustomPackPrices } from '@/app/actions';
 import type { AeroClass, Booking, ClassPack } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -221,16 +221,17 @@ function ManagePacksTab({ classPacks, onPacksUpdate }: { classPacks: ClassPack[]
     const [isPackModalOpen, setIsPackModalOpen] = useState(false);
     const [editingPack, setEditingPack] = useState<ClassPack | null>(null);
     const [packToDelete, setPackToDelete] = useState<ClassPack | null>(null);
-    const [customPrice, setCustomPrice] = useState<string>('');
-    const [isSavingCustomPrice, setIsSavingCustomPrice] = useState(false);
+    
+    const [customPrices, setCustomPrices] = useState<Record<string, number>>({});
+    const [isSavingCustom, setIsSavingCustom] = useState(false);
 
     useEffect(() => {
-        getCustomPackPrice().then(price => setCustomPrice(price.toString()));
+        getCustomPackPrices().then(prices => setCustomPrices(prices || {}));
     }, []);
 
     const handleSavePack = async (packData: any) => {
         const isEditing = !!editingPack;
-        const result = isEditing ? await updateClassPack({ ...packData, id: editingPack.id }) : await addClassPack(packData);
+        const result = isEditing ? await updateClassPack({ ...packData, id: editingPack!.id }) : await addClassPack(packData);
         if (result.success) {
             toast({ title: "¡Éxito!", description: `Bono ${isEditing ? 'actualizado' : 'creado'} correctamente.` });
             setIsPackModalOpen(false);
@@ -254,20 +255,22 @@ function ManagePacksTab({ classPacks, onPacksUpdate }: { classPacks: ClassPack[]
         }
     };
 
-    const handleSaveCustomPrice = async () => {
-        const price = parseFloat(customPrice);
-        if (isNaN(price)) {
-            toast({ variant: "destructive", title: "Error", description: "Por favor, introduce un número válido." });
-            return;
-        }
-        setIsSavingCustomPrice(true);
-        const result = await setCustomPackPrice(price);
+    const handleCustomPriceChange = (numClasses: string, price: string) => {
+        setCustomPrices(prev => ({
+            ...prev,
+            [numClasses]: parseFloat(price) || 0,
+        }));
+    };
+
+    const handleSaveCustomPrices = async () => {
+        setIsSavingCustom(true);
+        const result = await updateCustomPackPrices(customPrices);
         if (result.success) {
-            toast({ title: "¡Éxito!", description: "Precio del bono personalizado actualizado." });
+            toast({ title: "¡Éxito!", description: "Precios de bonos personalizados actualizados." });
         } else {
             toast({ variant: "destructive", title: "Error", description: result.error });
         }
-        setIsSavingCustomPrice(false);
+        setIsSavingCustom(false);
     };
 
     return (
@@ -275,21 +278,30 @@ function ManagePacksTab({ classPacks, onPacksUpdate }: { classPacks: ClassPack[]
             <div className="space-y-6">
                  <Card>
                     <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5"/>Configuración de Bono Personalizado</CardTitle>
-                        <CardDescription>Establece el precio por clase para los bonos con una cantidad personalizada.</CardDescription>
+                        <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5"/>Gestionar Precios Personalizados</CardTitle>
+                        <CardDescription>Define el precio para cada cantidad de clases en los bonos personalizados.</CardDescription>
                     </CardHeader>
-                    <CardContent>
-                        <div className="max-w-xs space-y-2">
-                            <Label htmlFor="customPrice">Precio por clase (€)</Label>
-                            <div className="flex items-center gap-2">
-                                <Input id="customPrice" type="number" value={customPrice} onChange={e => setCustomPrice(e.target.value)} placeholder="Ej: 18"/>
-                                <Button onClick={handleSaveCustomPrice} disabled={isSavingCustomPrice}>
-                                    {isSavingCustomPrice && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
-                                    Guardar
-                                </Button>
+                    <CardContent className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-x-4 gap-y-6">
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map(num => (
+                            <div key={num} className="space-y-2">
+                                <Label htmlFor={`price-${num}`}>{num} {num > 1 ? 'Clases' : 'Clase'}</Label>
+                                <Input
+                                    id={`price-${num}`}
+                                    type="number"
+                                    value={customPrices[num.toString()] || ''}
+                                    onChange={e => handleCustomPriceChange(num.toString(), e.target.value)}
+                                    placeholder="€"
+                                    className="[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                />
                             </div>
-                        </div>
+                        ))}
                     </CardContent>
+                    <CardFooter>
+                        <Button onClick={handleSaveCustomPrices} disabled={isSavingCustom}>
+                            {isSavingCustom && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                            Guardar Precios Personalizados
+                        </Button>
+                    </CardFooter>
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

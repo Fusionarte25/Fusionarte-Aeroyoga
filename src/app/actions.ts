@@ -18,9 +18,9 @@ export async function setActiveBookingMonth(year: number | null, month: number |
     return newActiveMonth?.toISOString() ?? null;
 }
 
-export async function createBooking(student: Student, selectedClasses: Pick<AeroClass, 'id'>[], packSize: number) {
+export async function createBooking(student: Student, selectedClasses: Pick<AeroClass, 'id'>[], packSize: number, price: number) {
   try {
-    const booking = db.addBooking(student, selectedClasses, packSize);
+    const booking = db.addBooking(student, selectedClasses, packSize, price);
     return { success: true, booking: JSON.parse(JSON.stringify(booking)) };
   } catch (error) {
     return { success: false, error: (error as Error).message };
@@ -180,14 +180,14 @@ export async function getClassCsv() {
 }
 
 // Custom Pack Price Actions
-export async function getCustomPackPrice() {
-    return db.getCustomPackPrice();
+export async function getCustomPackPrices() {
+    return db.getCustomPackPrices();
 }
 
-export async function setCustomPackPrice(price: number) {
+export async function updateCustomPackPrices(prices: Record<string, number>) {
     try {
-        const newPrice = db.setCustomPackPrice(price);
-        return { success: true, price: newPrice };
+        const newPrices = db.updateCustomPackPrices(prices);
+        return { success: true, prices: newPrices };
     } catch (error) {
         return { success: false, error: (error as Error).message };
     }
