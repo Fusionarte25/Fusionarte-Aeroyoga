@@ -98,11 +98,11 @@ export function setActiveBookingMonth(year: number | null, month: number | null)
 }
 
 export function getClasses(): AeroClass[] {
-  return JSON.parse(JSON.stringify(store.classes.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())));
+  return store.classes.sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 }
 
 export function getBookings(): Booking[] {
-  return JSON.parse(JSON.stringify(store.bookings.sort((a, b) => new Date(b.bookingDate).getTime() - new Date(a.bookingDate).getTime())));
+  return store.bookings.sort((a, b) => new Date(b.bookingDate).getTime() - new Date(a.bookingDate).getTime());
 }
 
 export function addBooking(student: Student, selectedClasses: Pick<AeroClass, 'id'>[], packSize: number): Booking {
@@ -335,7 +335,7 @@ export function getTeacherStats(year: number, month: number) {
 
 // Pack Management
 export function getClassPacks(): ClassPack[] {
-    return JSON.parse(JSON.stringify(store.classPacks));
+    return store.classPacks;
 }
 
 export function addClassPack(packData: Omit<ClassPack, 'id'>): ClassPack {
@@ -352,15 +352,18 @@ export function addClassPack(packData: Omit<ClassPack, 'id'>): ClassPack {
 
 export function updateClassPack(packData: ClassPack): ClassPack {
     const packIndex = store.classPacks.findIndex(p => p.id === packData.id);
-    if (packIndex === -1) throw new Error("Bono no encontrado.");
-
-    // If ID (number of classes) changes, check for collision
-    if (packData.id !== store.classPacks[packIndex].id) {
-         if (store.classPacks.some(p => p.id === packData.id)) {
-            throw new Error("Ya existe un bono con esa cantidad de clases.");
-        }
+    if (packIndex === -1) {
+        throw new Error("Bono no encontrado.");
     }
-    store.classPacks[packIndex] = { ...packData, id: packData.classes.toString() };
+
+    const newId = packData.classes.toString();
+    // Check if the ID is being changed, and if so, if the new ID is already taken by another pack.
+    if (newId !== packData.id && store.classPacks.some(p => p.id === newId)) {
+        throw new Error("Ya existe un bono con esa cantidad de clases.");
+    }
+    
+    // The incoming `packData` still has the old `id`. We need to create the updated object with the new `id`.
+    store.classPacks[packIndex] = { ...packData, id: newId };
     return store.classPacks[packIndex];
 }
 
