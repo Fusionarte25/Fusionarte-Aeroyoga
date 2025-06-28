@@ -1,13 +1,7 @@
 // NOTE: This is an in-memory data store for prototyping purposes.
 // In a real application, you would use a database.
 
-import type { AeroClass, Booking, Student } from "@/lib/types";
-
-const PACK_PRICES: { [key: number]: number } = {
-    4: 65,
-    8: 110,
-    12: 150,
-};
+import type { AeroClass, Booking, Student, ClassPack } from "@/lib/types";
 
 const schedule = [
   // Martes
@@ -57,6 +51,7 @@ type DataStore = {
   classes: AeroClass[];
   bookings: Booking[];
   activeBookingMonth: Date | null;
+  classPacks: ClassPack[];
 };
 
 // Use the global object to persist the store across hot reloads in development
@@ -75,6 +70,11 @@ if (!global.dataStore) {
     classes: classMonths.flatMap(month => generateMockClasses(month)),
     bookings: [],
     activeBookingMonth: new Date(today.getFullYear(), today.getMonth(), 1),
+    classPacks: [
+        { id: '4', name: '4 Clases / mes', classes: 4, price: 65 },
+        { id: '8', name: '8 Clases / mes', classes: 8, price: 110 },
+        { id: '12', name: '12 Clases / mes', classes: 12, price: 150 },
+    ],
   };
 }
 
@@ -138,7 +138,11 @@ export function addBooking(student: Student, selectedClasses: Pick<AeroClass, 'i
       store.classes[classIndex].bookedSpots += count;
   }
   
-  const price = PACK_PRICES[packSize] || 0;
+  const pack = store.classPacks.find(p => p.classes === packSize);
+  if (!pack) {
+      throw new Error(`No se encontró un bono para ${packSize} clases.`);
+  }
+  const price = pack.price;
 
   const newBooking: Booking = {
       id: bookingId,
@@ -147,13 +151,14 @@ export function addBooking(student: Student, selectedClasses: Pick<AeroClass, 'i
       bookingDate: new Date(),
       packSize,
       price,
+      paymentStatus: 'pending',
   };
   
   store.bookings.push(newBooking);
   return newBooking;
 }
 
-export function updateFullBooking(bookingId: string, updates: { student: Student, packSize: number, price: number, classIds: {id: string}[] }): Booking {
+export function updateFullBooking(bookingId: string, updates: { student: Student, packSize: number, price: number, classIds: {id: string}[], paymentStatus: 'pending' | 'completed' }): Booking {
     const bookingIndex = store.bookings.findIndex(b => b.id === bookingId);
     if (bookingIndex === -1) throw new Error("Reserva no encontrada");
 
@@ -202,12 +207,21 @@ export function updateFullBooking(bookingId: string, updates: { student: Student
     booking.student = updates.student;
     booking.packSize = updates.packSize;
     booking.price = updates.price;
+    booking.paymentStatus = updates.paymentStatus;
     booking.classes = newFullClassDetails.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     // Save the updated booking back to the store
     store.bookings[bookingIndex] = booking;
 
     return booking;
+}
+
+export function updateBookingStatus(bookingId: string, status: 'pending' | 'completed'): Booking {
+    const bookingIndex = store.bookings.findIndex(b => b.id === bookingId);
+    if (bookingIndex === -1) throw new Error("Reserva no encontrada");
+
+    store.bookings[bookingIndex].paymentStatus = status;
+    return store.bookings[bookingIndex];
 }
 
 export function getClassesWithAttendees() {
@@ -256,17 +270,22 @@ export function addRecurringClasses(data: {
         for (let day = 1; day <= daysInMonth; day++) {
             const date = new Date(data.year, monthIndex, day);
             if (date.getDay() === data.day) {
-                const newClass: AeroClass = {
-                    id: `class-${data.year}-${monthIndex + 1}-${day}-${data.time.replace(':', '')}-${Math.random()}`,
-                    name: data.name,
-                    date,
-                    time: data.time,
-                    totalSpots: data.totalSpots,
-                    bookedSpots: 0,
-                    teacher: data.teacher,
-                };
-                store.classes.push(newClass);
-                createdClasses.push(newClass);
+                const existingClass = store.classes.find(c => 
+                    c.date.getTime() === date.getTime() && c.time === data.time
+                );
+                if (!existingClass) {
+                    const newClass: AeroClass = {
+                        id: `class-${data.year}-${monthIndex + 1}-${day}-${data.time.replace(':', '')}-${Math.random()}`,
+                        name: data.name,
+                        date,
+                        time: data.time,
+                        totalSpots: data.totalSpots,
+                        bookedSpots: 0,
+                        teacher: data.teacher,
+                    };
+                    store.classes.push(newClass);
+                    createdClasses.push(newClass);
+                }
             }
         }
     });
@@ -290,7 +309,6 @@ export function deleteClass(classId: string): boolean {
   const classIndex = store.classes.findIndex(c => c.id === classId);
   if(classIndex === -1) return false;
 
-  // A simple check: do not delete if class has bookings.
   if(store.classes[classIndex].bookedSpots > 0) {
     throw new Error("No se puede eliminar una clase que ya tiene reservas.");
   }
@@ -312,4 +330,43 @@ export function getTeacherStats(year: number, month: number) {
         }
     });
     return stats;
+}
+
+
+// Pack Management
+export function getClassPacks(): ClassPack[] {
+    return JSON.parse(JSON.stringify(store.classPacks));
+}
+
+export function addClassPack(packData: Omit<ClassPack, 'id'>): ClassPack {
+    const newPack: ClassPack = {
+        ...packData,
+        id: packData.classes.toString(),
+    };
+    if (store.classPacks.some(p => p.id === newPack.id)) {
+        throw new Error("Ya existe un bono con esa cantidad de clases.");
+    }
+    store.classPacks.push(newPack);
+    return newPack;
+}
+
+export function updateClassPack(packData: ClassPack): ClassPack {
+    const packIndex = store.classPacks.findIndex(p => p.id === packData.id);
+    if (packIndex === -1) throw new Error("Bono no encontrado.");
+
+    // If ID (number of classes) changes, check for collision
+    if (packData.id !== store.classPacks[packIndex].id) {
+         if (store.classPacks.some(p => p.id === packData.id)) {
+            throw new Error("Ya existe un bono con esa cantidad de clases.");
+        }
+    }
+    store.classPacks[packIndex] = { ...packData, id: packData.classes.toString() };
+    return store.classPacks[packIndex];
+}
+
+export function deleteClassPack(packId: string): boolean {
+    const packIndex = store.classPacks.findIndex(p => p.id === packId);
+    if (packIndex === -1) return false;
+    store.classPacks.splice(packIndex, 1);
+    return true;
 }

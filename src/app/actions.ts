@@ -1,7 +1,7 @@
 'use server'
 
 import * as bookingService from '@/lib/data'
-import type { AeroClass, Student, Booking } from '@/lib/types'
+import type { AeroClass, Student, Booking, ClassPack } from '@/lib/types'
 
 export async function fetchClasses() {
   const allClasses = bookingService.getClasses();
@@ -9,13 +9,11 @@ export async function fetchClasses() {
 }
 
 export async function getActiveBookingMonth() {
-    // Return as ISO string for safe serialization across server/client boundary, or null
     return bookingService.getActiveBookingMonth()?.toISOString() ?? null;
 }
 
 export async function setActiveBookingMonth(year: number | null, month: number | null) {
     const newActiveMonth = bookingService.setActiveBookingMonth(year, month);
-    // Return as ISO string for safe serialization, or null
     return newActiveMonth?.toISOString() ?? null;
 }
 
@@ -28,9 +26,18 @@ export async function createBooking(student: Student, selectedClasses: Pick<Aero
   }
 }
 
-export async function updateFullBooking(bookingId: string, updates: { student: Student, packSize: number, price: number, classIds: {id: string}[] }) {
+export async function updateFullBooking(bookingId: string, updates: { student: Student, packSize: number, price: number, classIds: {id: string}[], paymentStatus: 'pending' | 'completed' }) {
     try {
         const updatedBooking = bookingService.updateFullBooking(bookingId, updates);
+        return { success: true, booking: JSON.parse(JSON.stringify(updatedBooking)) };
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
+    }
+}
+
+export async function updateBookingStatus(bookingId: string, status: 'pending' | 'completed') {
+    try {
+        const updatedBooking = bookingService.updateBookingStatus(bookingId, status);
         return { success: true, booking: JSON.parse(JSON.stringify(updatedBooking)) };
     } catch (error) {
         return { success: false, error: (error as Error).message };
@@ -130,6 +137,7 @@ export async function getStudentCsv() {
         bookingDate: b.bookingDate,
         packSize: `${b.packSize} clases`,
         price: `${b.price}€`,
+        paymentStatus: b.paymentStatus === 'completed' ? 'Realizado' : 'Pendiente',
         classes: b.classes,
     }));
     const headers = {
@@ -139,6 +147,7 @@ export async function getStudentCsv() {
         bookingDate: 'Fecha de Reserva',
         packSize: 'Bono Seleccionado',
         price: 'Precio',
+        paymentStatus: 'Estado del Pago',
         classes: 'Clases Reservadas',
     };
     return convertToCsv(bookings, headers);
@@ -167,4 +176,36 @@ export async function getClassCsv() {
         attendees: 'Nombres de Asistentes',
     };
     return convertToCsv(flatData, headers);
+}
+
+// Pack Management Actions
+export async function fetchPacks() {
+    return bookingService.getClassPacks();
+}
+
+export async function addClassPack(packData: Omit<ClassPack, 'id'>) {
+    try {
+        const newPack = bookingService.addClassPack(packData);
+        return { success: true, pack: JSON.parse(JSON.stringify(newPack)) };
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
+    }
+}
+
+export async function updateClassPack(packData: ClassPack) {
+    try {
+        const updatedPack = bookingService.updateClassPack(packData);
+        return { success: true, pack: JSON.parse(JSON.stringify(updatedPack)) };
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
+    }
+}
+
+export async function deleteClassPack(packId: string) {
+    try {
+        bookingService.deleteClassPack(packId);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
+    }
 }

@@ -6,7 +6,7 @@ import { es } from "date-fns/locale"
 import { Wind, CalendarDays, Check, List, Trash2, Users, FileText, CheckCircle2, CalendarCheck, Loader2, Download } from "lucide-react"
 import { jsPDF } from "jspdf"
 
-import type { AeroClass, Booking } from "@/lib/types"
+import type { AeroClass, Booking, ClassPack } from "@/lib/types"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
@@ -18,7 +18,7 @@ import { Separator } from "@/components/ui/separator"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
-import { createBooking, fetchClasses, getActiveBookingMonth } from "@/app/actions"
+import { createBooking, fetchClasses, getActiveBookingMonth, fetchPacks } from "@/app/actions"
 
 // --- Custom Day Component for Calendar ---
 function CustomDay(props: DayProps & {
@@ -198,6 +198,7 @@ export function AeroClassManager() {
   const [selectedClasses, setSelectedClasses] = useState<AeroClass[]>([])
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [classes, setClasses] = useState<AeroClass[]>([])
+  const [classPacks, setClassPacks] = useState<ClassPack[]>([]);
   const [isLoading, setIsLoading] = useState(true)
   const [activeBookingMonth, setActiveBookingMonth] = useState<Date | null>(null);
   const [name, setName] = useState("")
@@ -209,16 +210,22 @@ export function AeroClassManager() {
     const loadInitialData = async () => {
         setIsLoading(true);
         try {
-            const [fetchedClasses, fetchedMonth] = await Promise.all([
+            const [fetchedClasses, fetchedMonth, fetchedPacks] = await Promise.all([
                 fetchClasses(),
-                getActiveBookingMonth()
+                getActiveBookingMonth(),
+                fetchPacks()
             ]);
             const classesWithDates = fetchedClasses.map(c => ({...c, date: new Date(c.date)}));
             setClasses(classesWithDates);
+            setClassPacks(fetchedPacks);
             
             const activeMonthDate = fetchedMonth ? new Date(fetchedMonth) : null;
             setActiveBookingMonth(activeMonthDate);
-            setCurrentMonth(activeMonthDate ?? new Date());
+            if (activeMonthDate) {
+              setCurrentMonth(new Date(activeMonthDate));
+            } else {
+              setCurrentMonth(new Date());
+            }
         } catch (error) {
             console.error("Failed to load initial data", error);
             toast({
@@ -240,7 +247,7 @@ export function AeroClassManager() {
         setSelectedClasses(selectedClasses.slice(0, newPackSize))
         toast({
             title: "Selección actualizada",
-            description: "Tu selección de clases se ha acortado para ajustarse al nuevo tamaño del pack.",
+            description: "Tu selección de clases se ha acortado para ajustarse al nuevo tamaño del bono.",
         })
     }
   }
@@ -368,20 +375,16 @@ export function AeroClassManager() {
                 <CardDescription>Selecciona un bono mensual para empezar a reservar.</CardDescription>
               </CardHeader>
               <CardContent>
-                <RadioGroup onValueChange={handleSelectPack} value={packSize?.toString() ?? ''} disabled={bookingState === 'submitting'}>
-                    <div className="flex items-center space-x-2 p-4 rounded-md has-[:checked]:bg-accent has-[:checked]:shadow-inner">
-                        <RadioGroupItem value="4" id="p4" />
-                        <Label htmlFor="p4" className="text-base flex-grow cursor-pointer">4 Clases / mes - 65€</Label>
-                    </div>
-                    <div className="flex items-center space-x-2 p-4 rounded-md has-[:checked]:bg-accent has-[:checked]:shadow-inner">
-                        <RadioGroupItem value="8" id="p8" />
-                        <Label htmlFor="p8" className="text-base flex-grow cursor-pointer">8 Clases / mes - 110€</Label>
-                    </div>
-                    <div className="flex items-center space-x-2 p-4 rounded-md has-[:checked]:bg-accent has-[:checked]:shadow-inner">
-                        <RadioGroupItem value="12" id="p12" />
-                        <Label htmlFor="p12" className="text-base flex-grow cursor-pointer">12 Clases / mes - 150€</Label>
-                    </div>
-                </RadioGroup>
+                {isLoading ? <Skeleton className="h-24 w-full" /> : (
+                  <RadioGroup onValueChange={handleSelectPack} value={packSize?.toString() ?? ''} disabled={bookingState === 'submitting'}>
+                      {classPacks.sort((a,b) => a.classes - b.classes).map(pack => (
+                          <div key={pack.id} className="flex items-center space-x-2 p-4 rounded-md has-[:checked]:bg-accent has-[:checked]:shadow-inner">
+                              <RadioGroupItem value={pack.classes.toString()} id={`p${pack.classes}`} />
+                              <Label htmlFor={`p${pack.classes}`} className="text-base flex-grow cursor-pointer">{pack.name} - {pack.price}€</Label>
+                          </div>
+                      ))}
+                  </RadioGroup>
+                )}
               </CardContent>
             </Card>
         </div>

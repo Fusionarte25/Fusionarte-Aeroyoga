@@ -1,3 +1,10 @@
+export interface ClassPack {
+  id: string;
+  name: string;
+  classes: number;
+  price: number;
+}
+
 export interface AeroClass {
   id: string;
   name: string;
@@ -21,4 +28,5 @@ export interface Booking {
   bookingDate: Date;
   packSize: number;
   price: number;
+  paymentStatus: 'pending' | 'completed';
 }
