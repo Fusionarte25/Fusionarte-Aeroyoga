@@ -179,6 +179,20 @@ export async function getClassCsv() {
     return convertToCsv(flatData, headers);
 }
 
+// Custom Pack Price Actions
+export async function getCustomPackPrice() {
+    return db.getCustomPackPrice();
+}
+
+export async function setCustomPackPrice(price: number) {
+    try {
+        const newPrice = db.setCustomPackPrice(price);
+        return { success: true, price: newPrice };
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
+    }
+}
+
 // Pack Management Actions
 export async function fetchPacks() {
     return db.getClassPacks();

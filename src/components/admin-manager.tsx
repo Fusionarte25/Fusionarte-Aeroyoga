@@ -1,8 +1,8 @@
 "use client"
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Download, Lock, LogIn, PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight, BarChart2, DollarSign } from 'lucide-react';
-import { addClass, addRecurringClasses, deleteClass, fetchAdminData, getActiveBookingMonth, getClassCsv, getStudentCsv, setActiveBookingMonth, updateClass, updateFullBooking, getTeacherStats, fetchPacks, updateBookingStatus, addClassPack, updateClassPack, deleteClassPack } from '@/app/actions';
+import { Download, Lock, LogIn, PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight, BarChart2, DollarSign, Settings, Loader2 } from 'lucide-react';
+import { addClass, addRecurringClasses, deleteClass, fetchAdminData, getActiveBookingMonth, getClassCsv, getStudentCsv, setActiveBookingMonth, updateClass, updateFullBooking, getTeacherStats, fetchPacks, updateBookingStatus, addClassPack, updateClassPack, deleteClassPack, getCustomPackPrice, setCustomPackPrice } from '@/app/actions';
 import type { AeroClass, Booking, ClassPack } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -98,7 +98,7 @@ function ClassCreationForm({ onSave, onCancel }: {
                     </div>
                     <div className="space-y-2">
                         <Label>Meses de Aplicación ({formData.year})</Label>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">{monthOptions.map(month => (<div key={month.value} className="flex items-center space-x-2"><Checkbox id={`m-${month.value}`} checked={formData.months.includes(month.value)} onCheckedChange={() => handleMonthChange(month.value)} /><Label htmlFor={`m-${month.value}`} className="font-normal text-sm">{month.label}</Label></div>))}</div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">{monthOptions.map(month => (<div key={month.value} className="flex items-center space-x-2"><Checkbox id={`m-${month.value}`} checked={formData.months.includes(month.value)} onCheckedChange={() => handleMonthChange(month.value)} /><Label htmlFor={`m-${month.value}`} className="font-normal text-sm">{month.label}</Label></div>))}</div>
                     </div>
                 </>
             )}
@@ -221,6 +221,12 @@ function ManagePacksTab({ classPacks, onPacksUpdate }: { classPacks: ClassPack[]
     const [isPackModalOpen, setIsPackModalOpen] = useState(false);
     const [editingPack, setEditingPack] = useState<ClassPack | null>(null);
     const [packToDelete, setPackToDelete] = useState<ClassPack | null>(null);
+    const [customPrice, setCustomPrice] = useState<string>('');
+    const [isSavingCustomPrice, setIsSavingCustomPrice] = useState(false);
+
+    useEffect(() => {
+        getCustomPackPrice().then(price => setCustomPrice(price.toString()));
+    }, []);
 
     const handleSavePack = async (packData: any) => {
         const isEditing = !!editingPack;
@@ -248,21 +254,63 @@ function ManagePacksTab({ classPacks, onPacksUpdate }: { classPacks: ClassPack[]
         }
     };
 
+    const handleSaveCustomPrice = async () => {
+        const price = parseFloat(customPrice);
+        if (isNaN(price)) {
+            toast({ variant: "destructive", title: "Error", description: "Por favor, introduce un número válido." });
+            return;
+        }
+        setIsSavingCustomPrice(true);
+        const result = await setCustomPackPrice(price);
+        if (result.success) {
+            toast({ title: "¡Éxito!", description: "Precio del bono personalizado actualizado." });
+        } else {
+            toast({ variant: "destructive", title: "Error", description: result.error });
+        }
+        setIsSavingCustomPrice(false);
+    };
+
     return (
         <>
-            <Card>
-                <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"><div className="space-y-1"><CardTitle>Gestionar Bonos</CardTitle><CardDescription>Añade, edita o elimina los bonos de clases disponibles.</CardDescription></div><Button onClick={() => { setEditingPack(null); setIsPackModalOpen(true);}}><PlusCircle className="mr-2 h-4 w-4" /> Añadir Bono</Button></CardHeader>
-                <CardContent>
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader><TableRow><TableHead>Nombre del Bono</TableHead><TableHead>Nº de Clases</TableHead><TableHead>Precio</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {classPacks.map((pack) => (<TableRow key={pack.id}><TableCell className="font-medium">{pack.name}</TableCell><TableCell>{pack.classes}</TableCell><TableCell>{pack.price}€</TableCell><TableCell className="text-right space-x-2"><Button variant="outline" size="icon" onClick={() => { setEditingPack(pack); setIsPackModalOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="destructive" size="icon" onClick={() => setPackToDelete(pack)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>))}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
+            <div className="space-y-6">
+                 <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Settings className="h-5 w-5"/>Configuración de Bono Personalizado</CardTitle>
+                        <CardDescription>Establece el precio por clase para los bonos con una cantidad personalizada.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="max-w-xs space-y-2">
+                            <Label htmlFor="customPrice">Precio por clase (€)</Label>
+                            <div className="flex items-center gap-2">
+                                <Input id="customPrice" type="number" value={customPrice} onChange={e => setCustomPrice(e.target.value)} placeholder="Ej: 18"/>
+                                <Button onClick={handleSaveCustomPrice} disabled={isSavingCustomPrice}>
+                                    {isSavingCustomPrice && <Loader2 className="mr-2 h-4 w-4 animate-spin"/>}
+                                    Guardar
+                                </Button>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div className="space-y-1">
+                            <CardTitle>Gestionar Bonos Predefinidos</CardTitle>
+                            <CardDescription>Añade, edita o elimina los bonos de clases disponibles.</CardDescription>
+                        </div>
+                        <Button onClick={() => { setEditingPack(null); setIsPackModalOpen(true);}}><PlusCircle className="mr-2 h-4 w-4" /> Añadir Bono</Button>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="overflow-x-auto">
+                            <Table>
+                                <TableHeader><TableRow><TableHead>Nombre del Bono</TableHead><TableHead>Nº de Clases</TableHead><TableHead>Precio</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {classPacks.map((pack) => (<TableRow key={pack.id}><TableCell className="font-medium">{pack.name}</TableCell><TableCell>{pack.classes}</TableCell><TableCell>{pack.price}€</TableCell><TableCell className="text-right space-x-2"><Button variant="outline" size="icon" onClick={() => { setEditingPack(pack); setIsPackModalOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="destructive" size="icon" onClick={() => setPackToDelete(pack)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
             <Dialog open={isPackModalOpen} onOpenChange={setIsPackModalOpen}><DialogContent><DialogHeader><DialogTitle>{editingPack ? 'Editar' : 'Crear'} Bono</DialogTitle></DialogHeader><PackForm pack={editingPack} onSave={handleSavePack} onCancel={() => setIsPackModalOpen(false)}/></DialogContent></Dialog>
             <AlertDialog open={!!packToDelete} onOpenChange={(open) => !open && setPackToDelete(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>¿Estás seguro?</AlertDialogTitle><AlertDialogDescription>Se eliminará el bono "{packToDelete?.name}". Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setPackToDelete(null)}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleDeletePack}>Eliminar</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
         </>
@@ -405,17 +453,17 @@ function AdminDashboard() {
             <Tabs defaultValue="students" className="w-full" onValueChange={setActiveTab}>
                 <div className="flex flex-col gap-4 mb-4">
                     <div className="w-full overflow-x-auto pb-1">
-                        <TabsList>
-                            <TabsTrigger value="students">Reservas</TabsTrigger>
-                            <TabsTrigger value="classes">Asistencia</TabsTrigger>
-                            <TabsTrigger value="manage-classes">Gestionar Clases</TabsTrigger>
-                            <TabsTrigger value="manage-packs">Gestionar Bonos</TabsTrigger>
-                            <TabsTrigger value="stats">Estadísticas</TabsTrigger>
+                        <TabsList className="w-full sm:w-auto">
+                            <TabsTrigger value="students" className="flex-1 sm:flex-initial">Reservas</TabsTrigger>
+                            <TabsTrigger value="classes" className="flex-1 sm:flex-initial">Asistencia</TabsTrigger>
+                            <TabsTrigger value="manage-classes" className="flex-1 sm:flex-initial">Gestionar Clases</TabsTrigger>
+                            <TabsTrigger value="manage-packs" className="flex-1 sm:flex-initial">Gestionar Bonos</TabsTrigger>
+                            <TabsTrigger value="stats" className="flex-1 sm:flex-initial">Estadísticas</TabsTrigger>
                         </TabsList>
                     </div>
                     
                     {(activeTab === 'students' || activeTab === 'classes' || activeTab === 'manage-classes') && (
-                        <div className="flex flex-col sm:flex-row items-center sm:justify-end gap-4">
+                        <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-4">
                             <MonthNavigator date={displayDate} onDateChange={setDisplayDate} />
                             <Button onClick={handleExport} variant="outline" className="w-full sm:w-auto" disabled={activeTab === 'manage-classes'}>
                                 <Download className="mr-2 h-4 w-4" /> Exportar Vista

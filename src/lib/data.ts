@@ -52,6 +52,7 @@ type DataStore = {
   bookings: Booking[];
   activeBookingMonth: Date | null;
   classPacks: ClassPack[];
+  customPackPricePerClass: number;
 };
 
 // Use the global object to persist the store across hot reloads in development
@@ -75,6 +76,7 @@ if (!global.dataStore) {
         { id: '8', name: '8 Clases / mes', classes: 8, price: 110 },
         { id: '12', name: '12 Clases / mes', classes: 12, price: 150 },
     ],
+    customPackPricePerClass: 18,
   };
 }
 
@@ -139,10 +141,11 @@ export function addBooking(student: Student, selectedClasses: Pick<AeroClass, 'i
   }
   
   const pack = store.classPacks.find(p => p.classes === packSize);
-  if (!pack) {
-      throw new Error(`No se encontró un bono para ${packSize} clases.`);
+  const price = pack ? pack.price : packSize * store.customPackPricePerClass;
+  
+  if (price === undefined || price === null) {
+      throw new Error(`No se pudo calcular el precio para un bono de ${packSize} clases.`);
   }
-  const price = pack.price;
 
   const newBooking: Booking = {
       id: bookingId,
@@ -332,6 +335,17 @@ export function getTeacherStats(year: number, month: number) {
     return stats;
 }
 
+
+// Custom Pack Price Management
+export function getCustomPackPrice(): number {
+    return store.customPackPricePerClass;
+}
+
+export function setCustomPackPrice(price: number): number {
+    if (price < 0) throw new Error("El precio no puede ser negativo.");
+    store.customPackPricePerClass = price;
+    return store.customPackPricePerClass;
+}
 
 // Pack Management
 export function getClassPacks(): ClassPack[] {
