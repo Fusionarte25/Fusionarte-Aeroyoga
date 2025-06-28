@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Download, Lock, LogIn, PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
-import { addClass, addRecurringClasses, deleteClass, fetchAdminData, getActiveBookingMonth, getClassCsv, getStudentCsv, setActiveBookingMonth, updateClass, updateBookingClasses, getTeacherStats } from '@/app/actions';
+import { addClass, addRecurringClasses, deleteClass, fetchAdminData, getActiveBookingMonth, getClassCsv, getStudentCsv, setActiveBookingMonth, updateClass, updateFullBooking, getTeacherStats } from '@/app/actions';
 import type { AeroClass, Booking } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -17,7 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
-
+import { Separator } from '@/components/ui/separator';
 
 type ClassWithAttendees = {
     classDetails: AeroClass;
@@ -46,6 +46,7 @@ function ClassCreationForm({ onSave, onCancel }: {
     onCancel: () => void;
 }) {
     const [type, setType] = useState<'single' | 'recurring'>('single');
+    const { toast } = useToast();
     const [formData, setFormData] = useState({
         name: 'Aeroyoga',
         date: '',
@@ -223,20 +224,30 @@ function EditClassForm({ classData, onSave, onCancel }: {
 function EditBookingForm({ booking, allClasses, onSave, onCancel }: {
     booking: Booking;
     allClasses: AeroClass[];
-    onSave: (bookingId: string, newClassIds: {id: string}[]) => void;
+    onSave: (bookingId: string, updates: any) => void;
     onCancel: () => void;
 }) {
+    const [student, setStudent] = useState(booking.student);
+    const [price, setPrice] = useState(booking.price);
+    const [packSize, setPackSize] = useState(booking.packSize);
     const [selectedClassIds, setSelectedClassIds] = useState(booking.classes.map(c => c.id));
     
+    const handleStudentChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setStudent(prev => ({ ...prev, [e.target.name]: e.target.value }));
+    }
+
     const handleClassChange = (index: number, newClassId: string) => {
         const newSelection = [...selectedClassIds];
-        newSelection[index] = newClassId;
-        setSelectedClassIds(newSelection);
+        // Ensure the index exists before assigning
+        if (index < packSize) {
+            newSelection[index] = newClassId;
+            setSelectedClassIds(newSelection);
+        }
     }
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSave(booking.id, selectedClassIds.map(id => ({id})));
+        onSave(booking.id, { student, price, packSize, classIds: selectedClassIds.slice(0, packSize).map(id => ({id})) });
     }
     
     const today = new Date();
@@ -249,30 +260,65 @@ function EditBookingForm({ booking, allClasses, onSave, onCancel }: {
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <DialogDescription>
-                Editando la reserva de <span className="font-bold text-primary">{booking.student.name}</span> para el bono de {booking.packSize} clases.
+                Editando la reserva de <span className="font-bold text-primary">{booking.student.name}</span>.
             </DialogDescription>
-            <div className="space-y-3 max-h-[400px] overflow-y-auto p-1">
-                {Array.from({ length: booking.packSize }).map((_, index) => {
-                    const classId = selectedClassIds[index];
-                    return (
-                        <div key={index} className="space-y-2">
-                            <Label>Clase {index + 1}</Label>
-                            <Select onValueChange={(newId) => handleClassChange(index, newId)} defaultValue={classId}>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Selecciona una clase" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {availableClasses.map(cls => (
-                                        <SelectItem key={cls.id} value={cls.id} disabled={selectedClassIds.includes(cls.id) && cls.id !== classId}>
-                                            {cls.name} - {new Date(cls.date).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit'})} {cls.time} ({cls.totalSpots - cls.bookedSpots} libres)
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    );
-                })}
+            
+            <div className="space-y-4 border p-4 rounded-md">
+                <h4 className="font-semibold text-lg">Detalles de la Alumna</h4>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="name">Nombre</Label>
+                        <Input id="name" name="name" value={student.name} onChange={handleStudentChange} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="email">Email</Label>
+                        <Input id="email" name="email" type="email" value={student.email} onChange={handleStudentChange} />
+                    </div>
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="phone">Teléfono</Label>
+                    <Input id="phone" name="phone" value={student.phone} onChange={handleStudentChange} />
+                </div>
+                <Separator />
+                <h4 className="font-semibold text-lg">Detalles del Bono</h4>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="packSize">Nº de Clases (Bono)</Label>
+                        <Input id="packSize" name="packSize" type="number" value={packSize} onChange={(e) => setPackSize(parseInt(e.target.value, 10))} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="price">Precio (€)</Label>
+                        <Input id="price" name="price" type="number" value={price} onChange={(e) => setPrice(parseFloat(e.target.value))} />
+                    </div>
+                </div>
             </div>
+
+            <div className="space-y-4 border p-4 rounded-md">
+                <h4 className="font-semibold text-lg">Clases Seleccionadas</h4>
+                <div className="space-y-3 max-h-[300px] overflow-y-auto p-1">
+                    {Array.from({ length: packSize }).map((_, index) => {
+                        const classId = selectedClassIds[index];
+                        return (
+                            <div key={index} className="space-y-2">
+                                <Label>Clase {index + 1}</Label>
+                                <Select onValueChange={(newId) => handleClassChange(index, newId)} defaultValue={classId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecciona una clase" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {availableClasses.map(cls => (
+                                            <SelectItem key={cls.id} value={cls.id} disabled={selectedClassIds.includes(cls.id) && cls.id !== classId}>
+                                                {cls.name} - {new Date(cls.date).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit'})} {cls.time} ({cls.totalSpots - cls.bookedSpots} libres)
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+            
             <DialogFooter>
                 <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
                 <Button type="submit">Guardar Cambios</Button>
@@ -348,6 +394,22 @@ function StatisticsTab() {
     );
 }
 
+function MonthNavigator({ date, onDateChange }: { date: Date, onDateChange: (newDate: Date) => void }) {
+    const handleMonthChange = (offset: number) => {
+        onDateChange(new Date(date.getFullYear(), date.getMonth() + offset, 1));
+    };
+
+    return (
+        <div className="flex items-center gap-2">
+            <Button size="icon" variant="outline" onClick={() => handleMonthChange(-1)}><ChevronLeft className="h-4 w-4" /></Button>
+            <span className="font-bold text-lg text-primary w-48 text-center">
+                {date.toLocaleString('es-ES', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}
+            </span>
+            <Button size="icon" variant="outline" onClick={() => handleMonthChange(1)}><ChevronRight className="h-4 w-4" /></Button>
+        </div>
+    )
+}
+
 function AdminDashboard() {
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [classesWithAttendees, setClassesWithAttendees] = useState<ClassWithAttendees[]>([]);
@@ -362,6 +424,7 @@ function AdminDashboard() {
     const [classToDelete, setClassToDelete] = useState<AeroClass | null>(null);
     const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
     const [activeMonth, setActiveMonth] = useState<Date | null>(null);
+    const [displayDate, setDisplayDate] = useState(new Date());
 
     const loadData = useCallback(async () => {
         setIsLoading(true);
@@ -388,7 +451,7 @@ function AdminDashboard() {
             setBookings(deserializedBookings);
             setClassesWithAttendees(deserializedClasses);
             setAllClasses(deserializedAllClasses);
-            setActiveMonth(new Date(month));
+            setActiveMonth(month ? new Date(month) : null);
         } catch (error) {
             console.error("Failed to load admin data", error);
             toast({
@@ -405,12 +468,24 @@ function AdminDashboard() {
         loadData();
     }, [loadData]);
 
-    const handleMonthChange = async (offset: number) => {
-        if (!activeMonth) return;
-        const newMonthDate = new Date(activeMonth.getFullYear(), activeMonth.getMonth() + offset, 1);
-        const newActiveMonth = await setActiveBookingMonth(newMonthDate.getFullYear(), newMonthDate.getMonth());
-        setActiveMonth(new Date(newActiveMonth));
-        toast({ title: "Mes actualizado", description: `Ahora las alumnas reservarán para ${new Date(newActiveMonth).toLocaleString('es-ES', { month: 'long', year: 'numeric' })}.` });
+    const handleActiveMonthChange = async (offset: number | null) => {
+        let newDate: Date;
+        if (offset === null) {
+            const newActiveMonth = await setActiveBookingMonth(null, null);
+            setActiveMonth(null);
+            toast({ title: "Mes de reserva desactivado", description: "Las alumnas ya no podrán realizar nuevas reservas." });
+            return;
+        }
+
+        if (!activeMonth) {
+            newDate = new Date();
+        } else {
+             newDate = new Date(activeMonth.getFullYear(), activeMonth.getMonth() + offset, 1);
+        }
+
+        const newActiveMonth = await setActiveBookingMonth(newDate.getFullYear(), newDate.getMonth());
+        setActiveMonth(newActiveMonth ? new Date(newActiveMonth) : null);
+        toast({ title: "Mes actualizado", description: `Ahora las alumnas reservarán para ${new Date(newActiveMonth!).toLocaleString('es-ES', { month: 'long', year: 'numeric' })}.` });
     };
 
     const handleOpenAddModal = () => {
@@ -427,6 +502,7 @@ function AdminDashboard() {
         if (result.success) {
             toast({ title: "¡Éxito!", description: `Clase actualizada correctamente.` });
             setIsClassModalOpen(false);
+            setEditingClass(null);
             loadData();
         } else {
             toast({ variant: "destructive", title: "Error", description: result.error });
@@ -462,8 +538,8 @@ function AdminDashboard() {
         }
     };
     
-    const handleSaveBookingChanges = async (bookingId: string, newClassIds: {id: string}[]) => {
-        const result = await updateBookingClasses(bookingId, newClassIds);
+    const handleSaveBookingChanges = async (bookingId: string, updates: any) => {
+        const result = await updateFullBooking(bookingId, updates);
         if (result.success) {
             toast({ title: "¡Éxito!", description: "La reserva se ha actualizado correctamente." });
             setEditingBooking(null);
@@ -486,6 +562,17 @@ function AdminDashboard() {
         document.body.removeChild(link);
     };
 
+    const filteredBookings = bookings.filter(b => {
+        if (!b.classes || b.classes.length === 0) return false;
+        const firstClassDate = new Date(b.classes[0].date);
+        return firstClassDate.getFullYear() === displayDate.getFullYear() && firstClassDate.getMonth() === displayDate.getMonth();
+    });
+
+    const filteredClasses = classesWithAttendees.filter(cwa => {
+        const classDate = new Date(cwa.classDetails.date);
+        return classDate.getFullYear() === displayDate.getFullYear() && classDate.getMonth() === displayDate.getMonth();
+    });
+
     if (isLoading) {
         return (
             <div className="space-y-4">
@@ -502,17 +589,20 @@ function AdminDashboard() {
                     <CardTitle>Gestión de Inscripciones</CardTitle>
                     <CardDescription>Selecciona el mes en el que las alumnas pueden realizar sus reservas.</CardDescription>
                 </CardHeader>
-                <CardContent>
-                    <div className="flex items-center gap-4">
-                        <h3 className="text-sm font-semibold">Mes de Reservas Activo:</h3>
-                        {activeMonth && (
-                            <div className="flex items-center gap-2">
-                                <Button size="icon" variant="outline" onClick={() => handleMonthChange(-1)}><ChevronLeft className="h-4 w-4" /></Button>
-                                <span className="font-bold text-lg text-primary w-48 text-center">{activeMonth.toLocaleString('es-ES', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}</span>
-                                <Button size="icon" variant="outline" onClick={() => handleMonthChange(1)}><ChevronRight className="h-4 w-4" /></Button>
-                            </div>
-                        )}
-                    </div>
+                <CardContent className="flex flex-wrap items-center gap-4">
+                    <h3 className="text-sm font-semibold">Mes de Reservas Activo:</h3>
+                    {activeMonth ? (
+                        <div className="flex items-center gap-2">
+                            <Button size="icon" variant="outline" onClick={() => handleActiveMonthChange(-1)}><ChevronLeft className="h-4 w-4" /></Button>
+                            <span className="font-bold text-lg text-primary w-48 text-center">{activeMonth.toLocaleString('es-ES', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}</span>
+                            <Button size="icon" variant="outline" onClick={() => handleActiveMonthChange(1)}><ChevronRight className="h-4 w-4" /></Button>
+                        </div>
+                    ) : (
+                        <span className="font-bold text-lg text-destructive w-48 text-center">Inscripciones Cerradas</span>
+                    )}
+                     <Button variant={activeMonth ? "destructive" : "default"} onClick={() => handleActiveMonthChange(activeMonth ? null : 0)}>
+                        {activeMonth ? "Desactivar Inscripciones" : "Activar Mes Actual"}
+                    </Button>
                 </CardContent>
             </Card>
 
@@ -525,36 +615,42 @@ function AdminDashboard() {
                         <TabsTrigger value="stats">Estadísticas</TabsTrigger>
                     </TabsList>
                     {(activeTab === 'students' || activeTab === 'classes') && (
-                        <Button onClick={handleExport} variant="outline">
-                            <Download className="mr-2 h-4 w-4" /> Exportar Vista
-                        </Button>
+                        <div className="flex items-center gap-4">
+                            <MonthNavigator date={displayDate} onDateChange={setDisplayDate} />
+                            <Button onClick={handleExport} variant="outline">
+                                <Download className="mr-2 h-4 w-4" /> Exportar Vista
+                            </Button>
+                        </div>
                     )}
                 </div>
                 <TabsContent value="students">
                     <Card>
                         <CardHeader>
                             <CardTitle>Listado de Alumnas y sus Reservas</CardTitle>
-                            <CardDescription>Aquí puedes ver y editar todas las reservas realizadas.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             <Table>
                                 <TableHeader>
                                     <TableRow>
-                                        <TableHead>Nombre</TableHead>
-                                        <TableHead>Email</TableHead>
-                                        <TableHead>Teléfono</TableHead>
+                                        <TableHead>Alumna</TableHead>
+                                        <TableHead>Fecha Reserva</TableHead>
                                         <TableHead>Bono</TableHead>
+                                        <TableHead>Precio</TableHead>
                                         <TableHead>Clases</TableHead>
                                         <TableHead>Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {bookings.length > 0 ? bookings.map(booking => (
+                                    {filteredBookings.length > 0 ? filteredBookings.map(booking => (
                                         <TableRow key={booking.id}>
-                                            <TableCell className="font-medium">{booking.student.name}</TableCell>
-                                            <TableCell>{booking.student.email}</TableCell>
-                                            <TableCell>{booking.student.phone}</TableCell>
-                                            <TableCell>{booking.packSize} clases ({booking.price}€)</TableCell>
+                                            <TableCell className="font-medium">
+                                                <div className="font-bold">{booking.student.name}</div>
+                                                <div className="text-sm text-muted-foreground">{booking.student.email}</div>
+                                                <div className="text-sm text-muted-foreground">{booking.student.phone}</div>
+                                            </TableCell>
+                                            <TableCell>{new Date(booking.bookingDate).toLocaleString('es-ES')}</TableCell>
+                                            <TableCell>{booking.packSize} clases</TableCell>
+                                            <TableCell>{booking.price}€</TableCell>
                                             <TableCell>
                                                 <ul className="list-disc list-inside text-sm">
                                                     {booking.classes.map(cls => (
@@ -570,7 +666,7 @@ function AdminDashboard() {
                                         </TableRow>
                                     )) : (
                                         <TableRow>
-                                            <TableCell colSpan={6} className="text-center h-24">No hay reservas todavía.</TableCell>
+                                            <TableCell colSpan={6} className="text-center h-24">No hay reservas para el mes seleccionado.</TableCell>
                                         </TableRow>
                                     )}
                                 </TableBody>
@@ -580,7 +676,7 @@ function AdminDashboard() {
                 </TabsContent>
                 <TabsContent value="classes">
                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {classesWithAttendees.length > 0 ? classesWithAttendees.filter(cwa => new Date(cwa.classDetails.date) > new Date(Date.now() - 86400000)).map(({ classDetails, attendees }) => (
+                        {filteredClasses.length > 0 ? filteredClasses.map(({ classDetails, attendees }) => (
                             <Card key={classDetails.id}>
                                 <CardHeader>
                                     <CardTitle>{classDetails.name}</CardTitle>
@@ -601,7 +697,7 @@ function AdminDashboard() {
                                     ) : (<p className="text-sm text-muted-foreground">No hay alumnas inscritas.</p>)}
                                 </CardContent>
                             </Card>
-                        )) : (<p className="text-sm text-muted-foreground text-center py-4">No hay clases programadas.</p>)}
+                        )) : (<p className="text-sm text-muted-foreground text-center py-4">No hay clases programadas para el mes seleccionado.</p>)}
                     </div>
                 </TabsContent>
                 <TabsContent value="manage-classes">
@@ -651,7 +747,7 @@ function AdminDashboard() {
                     <DialogHeader>
                         <DialogTitle>Editar Clase</DialogTitle>
                     </DialogHeader>
-                    <EditClassForm classData={editingClass} onSave={handleSaveClass} onCancel={() => setIsClassModalOpen(false)} />
+                    {editingClass && <EditClassForm classData={editingClass} onSave={handleSaveClass} onCancel={() => setIsClassModalOpen(false)} />}
                 </DialogContent>
             </Dialog>
 
@@ -681,7 +777,7 @@ function AdminDashboard() {
             </AlertDialog>
 
             <Dialog open={!!editingBooking} onOpenChange={(open) => !open && setEditingBooking(null)}>
-                <DialogContent>
+                <DialogContent className="max-w-2xl">
                     <DialogHeader>
                         <DialogTitle>Editar Reserva</DialogTitle>
                     </DialogHeader>

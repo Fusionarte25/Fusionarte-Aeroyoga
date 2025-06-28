@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from "react"
 import { DayPicker, DayProps } from "react-day-picker"
 import { es } from "date-fns/locale"
 import { Wind, CalendarDays, Check, List, Trash2, Users, FileText, CheckCircle2, CalendarCheck, Loader2, Download } from "lucide-react"
+import { jsPDF } from "jspdf"
 
 import type { AeroClass, Booking } from "@/lib/types"
 import { cn } from "@/lib/utils"
@@ -25,7 +26,7 @@ function CustomDay(props: DayProps & {
   selectedClasses: AeroClass[];
   onSelectClass: (cls: AeroClass) => void;
   packSize: number | null;
-  activeBookingMonth: Date;
+  activeBookingMonth: Date | null;
 }) {
   const { date, displayMonth, allClasses, onSelectClass, selectedClasses, packSize, activeBookingMonth } = props;
   const dayClasses = allClasses.filter(c => c.date.toDateString() === date.toDateString());
@@ -38,7 +39,7 @@ function CustomDay(props: DayProps & {
   today.setHours(0,0,0,0);
   const isDayInPast = date < today;
 
-  const isBookableMonth = date.getFullYear() === activeBookingMonth.getFullYear() && date.getMonth() === activeBookingMonth.getMonth();
+  const isBookableMonth = activeBookingMonth && date.getFullYear() === activeBookingMonth.getFullYear() && date.getMonth() === activeBookingMonth.getMonth();
 
   return (
     <div
@@ -107,40 +108,45 @@ function CustomDay(props: DayProps & {
 // --- Success Screen Component ---
 function SuccessScreen({ booking, onNewBooking }: { booking: Booking; onNewBooking: () => void }) {
   const handleDownloadReceipt = () => {
-    const receiptContent = `
-Resumen de Reserva - Fusionarte
+    const doc = new jsPDF();
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.text("Resumen de Reserva - Fusionarte", 105, 20, { align: "center" });
 
-Gracias por tu reserva, ${booking.student.name}.
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.text(`Gracias por tu reserva, ${booking.student.name}.`, 10, 40);
 
------------------------------------------
-Detalles de la Reserva
------------------------------------------
-ID de Reserva: ${booking.id}
-Fecha de Reserva: ${new Date(booking.bookingDate).toLocaleString('es-ES')}
-Bono: ${booking.packSize} clases
-Precio Total: ${booking.price}€
+    doc.line(10, 45, 200, 45);
 
------------------------------------------
-Clases Seleccionadas
------------------------------------------
-${booking.classes.map(cls => 
-  `· ${cls.name} - ${new Date(cls.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} a las ${cls.time}`
-).join('\n')}
+    doc.setFont("helvetica", "bold");
+    doc.text("Detalles de la Reserva", 10, 55);
+    doc.setFont("helvetica", "normal");
+    doc.text(`ID de Reserva: ${booking.id}`, 10, 65);
+    doc.text(`Fecha de Reserva: ${new Date(booking.bookingDate).toLocaleString('es-ES')}`, 10, 72);
+    doc.text(`Bono: ${booking.packSize} clases`, 10, 79);
+    doc.text(`Precio Total: ${booking.price}€`, 10, 86);
 
------------------------------------------
-Para cualquier duda, puedes contactarnos.
-¡Nos vemos en clase!
-    `;
+    doc.line(10, 96, 200, 96);
+    
+    doc.setFont("helvetica", "bold");
+    doc.text("Clases Seleccionadas", 10, 106);
+    doc.setFont("helvetica", "normal");
+    
+    let yPos = 116;
+    booking.classes.forEach(cls => {
+      const classLine = `· ${cls.name} - ${new Date(cls.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} a las ${cls.time}`;
+      doc.text(classLine, 15, yPos);
+      yPos += 7;
+    });
 
-    const blob = new Blob([receiptContent.trim()], { type: 'text/plain;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `comprobante-fusionarte-${booking.student.name.replace(/\s/g, '_')}.txt`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    doc.line(10, yPos + 5, 200, yPos + 5);
+    
+    doc.setFontSize(10);
+    doc.text("Para cualquier duda, puedes contactarnos. ¡Nos vemos en clase!", 105, yPos + 15, { align: "center" });
+
+    doc.save(`comprobante-fusionarte-${booking.student.name.replace(/\s/g, '_')}.pdf`);
   };
 
   return (
@@ -154,7 +160,7 @@ Para cualquier duda, puedes contactarnos.
                   </CardDescription>
               </CardHeader>
               <CardContent>
-                  <p className="mb-4 text-muted-foreground">Recibirás un resumen por correo electrónico. Para cualquier duda, puedes contactarnos.</p>
+                  <p className="mb-4 text-muted-foreground">Hemos generado un comprobante en PDF para ti. Para cualquier duda, puedes contactarnos.</p>
                   <Separator className="my-6" />
                   <h3 className="font-semibold text-xl mb-4 text-left">Resumen de tu bono de {booking.packSize} clases ({booking.price}€):</h3>
                   <ul className="space-y-3 text-left">
@@ -171,7 +177,7 @@ Para cualquier duda, puedes contactarnos.
               </CardContent>
               <CardFooter className="flex-col sm:flex-row gap-4">
                   <Button size="lg" className="w-full text-lg" onClick={handleDownloadReceipt} variant="outline">
-                      <Download className="mr-2 h-5 w-5"/> Descargar Comprobante
+                      <Download className="mr-2 h-5 w-5"/> Descargar Comprobante PDF
                   </Button>
                   <Button size="lg" className="w-full text-lg mt-4 sm:mt-0" onClick={onNewBooking}>
                       Hacer una nueva reserva
@@ -210,9 +216,9 @@ export function AeroClassManager() {
             const classesWithDates = fetchedClasses.map(c => ({...c, date: new Date(c.date)}));
             setClasses(classesWithDates);
             
-            const activeMonthDate = new Date(fetchedMonth);
+            const activeMonthDate = fetchedMonth ? new Date(fetchedMonth) : null;
             setActiveBookingMonth(activeMonthDate);
-            setCurrentMonth(activeMonthDate);
+            setCurrentMonth(activeMonthDate ?? new Date());
         } catch (error) {
             console.error("Failed to load initial data", error);
             toast({
@@ -390,11 +396,14 @@ export function AeroClassManager() {
                             Puedes navegar por el calendario, pero solo puedes reservar en el mes activo.
                         </CardDescription>
                     ) : (
-                        <CardDescription>Cargando calendario...</CardDescription>
+                         <CardDescription>
+                            <span className="font-semibold text-destructive">Las inscripciones están cerradas actualmente.</span>
+                            Puedes navegar por el calendario para ver los horarios.
+                        </CardDescription>
                     )}
                 </CardHeader>
                 <CardContent>
-                    {isLoading || !activeBookingMonth ? (
+                    {isLoading ? (
                          <div className="flex justify-center items-center min-h-[300px]">
                             <Skeleton className="h-[450px] w-full" />
                          </div>

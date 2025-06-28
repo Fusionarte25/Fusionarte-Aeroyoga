@@ -56,7 +56,7 @@ const generateMockClasses = (month: Date): AeroClass[] => {
 type DataStore = {
   classes: AeroClass[];
   bookings: Booking[];
-  activeBookingMonth: Date;
+  activeBookingMonth: Date | null;
 };
 
 // Use the global object to persist the store across hot reloads in development
@@ -84,13 +84,17 @@ const store = global.dataStore;
 
 // --- Service Functions ---
 
-export function getActiveBookingMonth(): Date {
+export function getActiveBookingMonth(): Date | null {
   return store.activeBookingMonth;
 }
 
-export function setActiveBookingMonth(year: number, month: number): Date {
-  store.activeBookingMonth = new Date(year, month, 1);
-  return store.activeBookingMonth;
+export function setActiveBookingMonth(year: number | null, month: number | null): Date | null {
+    if (year === null || month === null) {
+        store.activeBookingMonth = null;
+    } else {
+        store.activeBookingMonth = new Date(year, month, 1);
+    }
+    return store.activeBookingMonth;
 }
 
 export function getClasses(): AeroClass[] {
@@ -149,24 +153,22 @@ export function addBooking(student: Student, selectedClasses: Pick<AeroClass, 'i
   return newBooking;
 }
 
-export function updateBookingClasses(bookingId: string, newSelectedClassIds: Pick<AeroClass, 'id'>[]): Booking {
+export function updateFullBooking(bookingId: string, updates: { student: Student, packSize: number, price: number, classIds: {id: string}[] }): Booking {
     const bookingIndex = store.bookings.findIndex(b => b.id === bookingId);
     if (bookingIndex === -1) throw new Error("Reserva no encontrada");
 
     const booking = store.bookings[bookingIndex];
     
-    if (newSelectedClassIds.length !== booking.packSize) {
-        throw new Error(`La selección debe ser de ${booking.packSize} clases.`);
-    }
-
+    // --- Step 1: Handle Class Changes ---
     const oldClassIds = booking.classes.map(c => c.id);
-    const newIds = newSelectedClassIds.map(c => c.id);
+    const newClassIds = updates.classIds.map(c => c.id);
 
+    // Calculate spot changes needed
     const spotChanges: Record<string, number> = {};
     oldClassIds.forEach(id => { spotChanges[id] = (spotChanges[id] || 0) - 1; });
-    newIds.forEach(id => { spotChanges[id] = (spotChanges[id] || 0) + 1; });
+    newClassIds.forEach(id => { spotChanges[id] = (spotChanges[id] || 0) + 1; });
 
-    // First, check if all new spots are available BEFORE making changes
+    // Validate spot availability BEFORE applying any changes
     for (const classId in spotChanges) {
         if (spotChanges[classId] > 0) { // Only check for increments
             const classToBook = store.classes.find(c => c.id === classId);
@@ -176,25 +178,33 @@ export function updateBookingClasses(bookingId: string, newSelectedClassIds: Pic
             }
         }
     }
-
+    
+    // Get full details for new classes
     const newFullClassDetails: AeroClass[] = [];
-    newIds.forEach(id => {
+    newClassIds.forEach(id => {
         const cls = store.classes.find(c => c.id === id);
         if (cls) newFullClassDetails.push(cls);
     });
-    if(newFullClassDetails.length !== newIds.length) {
+    if(newFullClassDetails.length !== newClassIds.length) {
       throw new Error("Una o más de las clases seleccionadas no se encontraron.");
     }
     
-    // If all checks passed, apply the changes
+    // Apply spot changes
     for (const classId in spotChanges) {
         const classIndex = store.classes.findIndex(c => c.id === classId);
         if (classIndex !== -1) {
             store.classes[classIndex].bookedSpots += spotChanges[classId];
+            if (store.classes[classIndex].bookedSpots < 0) store.classes[classIndex].bookedSpots = 0; // Sanity check
         }
     }
     
+    // --- Step 2: Update Booking Details ---
+    booking.student = updates.student;
+    booking.packSize = updates.packSize;
+    booking.price = updates.price;
     booking.classes = newFullClassDetails.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    // Save the updated booking back to the store
     store.bookings[bookingIndex] = booking;
 
     return booking;

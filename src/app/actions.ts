@@ -1,25 +1,22 @@
 'use server'
 
 import * as bookingService from '@/lib/data'
-import type { AeroClass, Student } from '@/lib/types'
+import type { AeroClass, Student, Booking } from '@/lib/types'
 
 export async function fetchClasses() {
   const allClasses = bookingService.getClasses();
-  const today = new Date();
-  today.setHours(0,0,0,0);
-
   return allClasses;
 }
 
 export async function getActiveBookingMonth() {
-    // Return as ISO string for safe serialization across server/client boundary
-    return bookingService.getActiveBookingMonth().toISOString();
+    // Return as ISO string for safe serialization across server/client boundary, or null
+    return bookingService.getActiveBookingMonth()?.toISOString() ?? null;
 }
 
-export async function setActiveBookingMonth(year: number, month: number) {
-    bookingService.setActiveBookingMonth(year, month);
-    // Return as ISO string for safe serialization
-    return bookingService.getActiveBookingMonth().toISOString();
+export async function setActiveBookingMonth(year: number | null, month: number | null) {
+    const newActiveMonth = bookingService.setActiveBookingMonth(year, month);
+    // Return as ISO string for safe serialization, or null
+    return newActiveMonth?.toISOString() ?? null;
 }
 
 export async function createBooking(student: Student, selectedClasses: Pick<AeroClass, 'id'>[], packSize: number) {
@@ -31,14 +28,15 @@ export async function createBooking(student: Student, selectedClasses: Pick<Aero
   }
 }
 
-export async function updateBookingClasses(bookingId: string, newClassIds: Pick<AeroClass, 'id'>[]) {
+export async function updateFullBooking(bookingId: string, updates: { student: Student, packSize: number, price: number, classIds: {id: string}[] }) {
     try {
-        const updatedBooking = bookingService.updateBookingClasses(bookingId, newClassIds);
+        const updatedBooking = bookingService.updateFullBooking(bookingId, updates);
         return { success: true, booking: JSON.parse(JSON.stringify(updatedBooking)) };
     } catch (error) {
         return { success: false, error: (error as Error).message };
     }
 }
+
 
 export async function fetchAdminData() {
     const bookings = bookingService.getBookings();
@@ -149,7 +147,6 @@ export async function getStudentCsv() {
 export async function getClassCsv() {
     const classesWithAttendees = bookingService.getClassesWithAttendees();
     const flatData = classesWithAttendees
-        .filter(c => new Date(c.classDetails.date) >= new Date()) // Optional: only future classes
         .map(c => ({
             className: c.classDetails.name,
             date: new Date(c.classDetails.date),
