@@ -81,24 +81,24 @@ function ClassCreationForm({ onSave, onCancel }: {
             </RadioGroup>
             <Separator />
             <div className="space-y-2"><Label htmlFor="name">Nombre de la Clase</Label><Input id="name" name="name" value={formData.name} onChange={handleChange} required /></div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2"><Label htmlFor="totalSpots">Plazas Totales</Label><Input id="totalSpots" name="totalSpots" type="number" value={formData.totalSpots} onChange={handleChange} required /></div>
                 <div className="space-y-2"><Label htmlFor="teacher">Profesor/a</Label><Input id="teacher" name="teacher" value={formData.teacher} onChange={handleChange} /></div>
             </div>
             {type === 'single' ? (
-                 <div className="grid grid-cols-2 gap-4">
+                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2"><Label htmlFor="date">Fecha</Label><Input id="date" name="date" type="date" value={formData.date} onChange={handleChange} required /></div>
                     <div className="space-y-2"><Label htmlFor="time">Hora</Label><Input id="time" name="time" type="time" value={formData.time} onChange={handleChange} required /></div>
                 </div>
             ) : (
                 <>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-2"><Label>Día de la Semana</Label><Select onValueChange={(v) => handleSelectChange('day', v)} defaultValue={formData.day.toString()}><SelectTrigger><SelectValue/></SelectTrigger><SelectContent>{weekdayOptions.map(opt => <SelectItem key={opt.value} value={opt.value.toString()}>{opt.label}</SelectItem>)}</SelectContent></Select></div>
                         <div className="space-y-2"><Label htmlFor="time">Hora</Label><Input id="time" name="time" type="time" value={formData.time} onChange={handleChange} required /></div>
                     </div>
                     <div className="space-y-2">
                         <Label>Meses de Aplicación ({formData.year})</Label>
-                        <div className="grid grid-cols-3 gap-2">{monthOptions.map(month => (<div key={month.value} className="flex items-center space-x-2"><Checkbox id={`m-${month.value}`} checked={formData.months.includes(month.value)} onCheckedChange={() => handleMonthChange(month.value)} /><Label htmlFor={`m-${month.value}`} className="font-normal">{month.label}</Label></div>))}</div>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">{monthOptions.map(month => (<div key={month.value} className="flex items-center space-x-2"><Checkbox id={`m-${month.value}`} checked={formData.months.includes(month.value)} onCheckedChange={() => handleMonthChange(month.value)} /><Label htmlFor={`m-${month.value}`} className="font-normal text-sm">{month.label}</Label></div>))}</div>
                     </div>
                 </>
             )}
@@ -122,11 +122,11 @@ function EditClassForm({ classData, onSave, onCancel }: { classData: Partial<Aer
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2"><Label htmlFor="name">Nombre de la Clase</Label><Input id="name" name="name" value={formData.name} onChange={handleChange} required /></div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2"><Label htmlFor="date">Fecha</Label><Input id="date" name="date" type="date" value={formData.date} onChange={handleChange} required /></div>
                 <div className="space-y-2"><Label htmlFor="time">Hora</Label><Input id="time" name="time" type="time" value={formData.time} onChange={handleChange} required /></div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                  <div className="space-y-2"><Label htmlFor="totalSpots">Plazas Totales</Label><Input id="totalSpots" name="totalSpots" type="number" value={formData.totalSpots} onChange={handleChange} required /></div>
                 <div className="space-y-2"><Label htmlFor="teacher">Profesor/a</Label><Input id="teacher" name="teacher" value={formData.teacher} onChange={handleChange} /></div>
             </div>
@@ -162,14 +162,14 @@ function EditBookingForm({ booking, allClasses, onSave, onCancel }: { booking: B
             <DialogDescription>Editando la reserva de <span className="font-bold text-primary">{booking.student.name}</span>.</DialogDescription>
             <div className="space-y-4 border p-4 rounded-md">
                 <h4 className="font-semibold text-lg">Detalles de la Alumna</h4>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-2"><Label htmlFor="name">Nombre</Label><Input id="name" name="name" value={student.name} onChange={handleStudentChange} /></div>
                     <div className="space-y-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" value={student.email} onChange={handleStudentChange} /></div>
                 </div>
                 <div className="space-y-2"><Label htmlFor="phone">Teléfono</Label><Input id="phone" name="phone" value={student.phone} onChange={handleStudentChange} /></div>
                 <Separator />
                 <h4 className="font-semibold text-lg">Detalles del Bono y Pago</h4>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="space-y-2"><Label htmlFor="packSize">Nº de Clases (Bono)</Label><Input id="packSize" name="packSize" type="number" value={packSize} onChange={(e) => setPackSize(parseInt(e.target.value, 10))} /></div>
                     <div className="space-y-2"><Label htmlFor="price">Precio (€)</Label><Input id="price" name="price" type="number" value={price} onChange={(e) => setPrice(parseFloat(e.target.value))} /></div>
                     <div className="space-y-2"><Label>Estado del Pago</Label><Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as 'pending'|'completed')}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pendiente</SelectItem><SelectItem value="completed">Realizado</SelectItem></SelectContent></Select></div>
@@ -204,10 +204,12 @@ function StatisticsTab() {
             <CardContent>
                 <div className="flex items-center gap-4 mb-6"><h3 className="text-sm font-semibold">Seleccionar Mes:</h3><MonthNavigator date={date} onDateChange={setDate} /></div>
                 {!stats ? <Skeleton className="h-24 w-full" /> : (
-                    <Table>
-                        <TableHeader><TableRow><TableHead>Profesor/a</TableHead><TableHead className="text-right">Nº de Clases</TableHead></TableRow></TableHeader>
-                        <TableBody>{Object.keys(stats).length > 0 ? Object.entries(stats).map(([teacher, count]) => (<TableRow key={teacher}><TableCell className="font-medium">{teacher}</TableCell><TableCell className="text-right font-bold text-lg">{count}</TableCell></TableRow>)) : (<TableRow><TableCell colSpan={2} className="text-center h-24">No hay datos para este mes.</TableCell></TableRow>)}</TableBody>
-                    </Table>
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Profesor/a</TableHead><TableHead className="text-right">Nº de Clases</TableHead></TableRow></TableHeader>
+                            <TableBody>{Object.keys(stats).length > 0 ? Object.entries(stats).map(([teacher, count]) => (<TableRow key={teacher}><TableCell className="font-medium">{teacher}</TableCell><TableCell className="text-right font-bold text-lg">{count}</TableCell></TableRow>)) : (<TableRow><TableCell colSpan={2} className="text-center h-24">No hay datos para este mes.</TableCell></TableRow>)}</TableBody>
+                        </Table>
+                    </div>
                 )}
             </CardContent>
         </Card>
@@ -249,14 +251,16 @@ function ManagePacksTab({ classPacks, onPacksUpdate }: { classPacks: ClassPack[]
     return (
         <>
             <Card>
-                <CardHeader className="flex flex-row justify-between items-center"><div className="space-y-1"><CardTitle>Gestionar Bonos</CardTitle><CardDescription>Añade, edita o elimina los bonos de clases disponibles.</CardDescription></div><Button onClick={() => { setEditingPack(null); setIsPackModalOpen(true);}}><PlusCircle className="mr-2 h-4 w-4" /> Añadir Bono</Button></CardHeader>
+                <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"><div className="space-y-1"><CardTitle>Gestionar Bonos</CardTitle><CardDescription>Añade, edita o elimina los bonos de clases disponibles.</CardDescription></div><Button onClick={() => { setEditingPack(null); setIsPackModalOpen(true);}}><PlusCircle className="mr-2 h-4 w-4" /> Añadir Bono</Button></CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader><TableRow><TableHead>Nombre del Bono</TableHead><TableHead>Nº de Clases</TableHead><TableHead>Precio</TableHead><TableHead>Acciones</TableHead></TableRow></TableHeader>
-                        <TableBody>
-                            {classPacks.map((pack) => (<TableRow key={pack.id}><TableCell className="font-medium">{pack.name}</TableCell><TableCell>{pack.classes}</TableCell><TableCell>{pack.price}€</TableCell><TableCell className="space-x-2"><Button variant="outline" size="icon" onClick={() => { setEditingPack(pack); setIsPackModalOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="destructive" size="icon" onClick={() => setPackToDelete(pack)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>))}
-                        </TableBody>
-                    </Table>
+                    <div className="overflow-x-auto">
+                        <Table>
+                            <TableHeader><TableRow><TableHead>Nombre del Bono</TableHead><TableHead>Nº de Clases</TableHead><TableHead>Precio</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {classPacks.map((pack) => (<TableRow key={pack.id}><TableCell className="font-medium">{pack.name}</TableCell><TableCell>{pack.classes}</TableCell><TableCell>{pack.price}€</TableCell><TableCell className="text-right space-x-2"><Button variant="outline" size="icon" onClick={() => { setEditingPack(pack); setIsPackModalOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="destructive" size="icon" onClick={() => setPackToDelete(pack)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>))}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
             </Card>
             <Dialog open={isPackModalOpen} onOpenChange={setIsPackModalOpen}><DialogContent><DialogHeader><DialogTitle>{editingPack ? 'Editar' : 'Crear'} Bono</DialogTitle></DialogHeader><PackForm pack={editingPack} onSave={handleSavePack} onCancel={() => setIsPackModalOpen(false)}/></DialogContent></Dialog>
@@ -269,11 +273,11 @@ function PackForm({ pack, onSave, onCancel }: { pack: ClassPack | null, onSave: 
     const [formData, setFormData] = useState({ name: pack?.name || '', classes: pack?.classes || 1, price: pack?.price || 0 });
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => { const { name, value, type } = e.target; setFormData(prev => ({ ...prev, [name]: type === 'number' ? parseFloat(value) : value })); };
     const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave(formData); };
-    return (<form onSubmit={handleSubmit} className="space-y-4 pt-4"><div className="space-y-2"><Label htmlFor="name">Nombre del Bono</Label><Input id="name" name="name" value={formData.name} onChange={handleChange} required/></div><div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="classes">Nº de Clases</Label><Input id="classes" name="classes" type="number" value={formData.classes} onChange={handleChange} required/></div><div className="space-y-2"><Label htmlFor="price">Precio (€)</Label><Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} required/></div></div><DialogFooter><Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button><Button type="submit">Guardar Bono</Button></DialogFooter></form>)
+    return (<form onSubmit={handleSubmit} className="space-y-4 pt-4"><div className="space-y-2"><Label htmlFor="name">Nombre del Bono</Label><Input id="name" name="name" value={formData.name} onChange={handleChange} required/></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="classes">Nº de Clases</Label><Input id="classes" name="classes" type="number" value={formData.classes} onChange={handleChange} required/></div><div className="space-y-2"><Label htmlFor="price">Precio (€)</Label><Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} required/></div></div><DialogFooter><Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button><Button type="submit">Guardar Bono</Button></DialogFooter></form>)
 }
 
 function MonthNavigator({ date, onDateChange }: { date: Date, onDateChange: (newDate: Date) => void }) {
-    return (<div className="flex items-center gap-2"><Button size="icon" variant="outline" onClick={() => onDateChange(new Date(date.getFullYear(), date.getMonth() - 1, 1))}><ChevronLeft className="h-4 w-4" /></Button><span className="font-bold text-lg text-primary w-48 text-center">{date.toLocaleString('es-ES', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}</span><Button size="icon" variant="outline" onClick={() => onDateChange(new Date(date.getFullYear(), date.getMonth() + 1, 1))}><ChevronRight className="h-4 w-4" /></Button></div>)
+    return (<div className="flex items-center gap-2"><Button size="icon" variant="outline" onClick={() => onDateChange(new Date(date.getFullYear(), date.getMonth() - 1, 1))}><ChevronLeft className="h-4 w-4" /></Button><span className="font-bold text-lg text-primary w-40 sm:w-48 text-center">{date.toLocaleString('es-ES', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}</span><Button size="icon" variant="outline" onClick={() => onDateChange(new Date(date.getFullYear(), date.getMonth() + 1, 1))}><ChevronRight className="h-4 w-4" /></Button></div>)
 }
 
 function AdminDashboard() {
@@ -393,14 +397,14 @@ function AdminDashboard() {
                 <CardHeader><CardTitle>Gestión de Inscripciones</CardTitle><CardDescription>Selecciona el mes en el que las alumnas pueden realizar sus reservas.</CardDescription></CardHeader>
                 <CardContent className="flex flex-wrap items-center gap-4">
                     <h3 className="text-sm font-semibold">Mes de Reservas Activo:</h3>
-                    {activeMonth ? (<div className="flex items-center gap-2"><Button size="icon" variant="outline" onClick={() => handleActiveMonthChange(-1)}><ChevronLeft className="h-4 w-4" /></Button><span className="font-bold text-lg text-primary w-48 text-center">{activeMonth.toLocaleString('es-ES', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}</span><Button size="icon" variant="outline" onClick={() => handleActiveMonthChange(1)}><ChevronRight className="h-4 w-4" /></Button></div>) : (<span className="font-bold text-lg text-destructive w-48 text-center">Inscripciones Cerradas</span>)}
+                    {activeMonth ? (<div className="flex items-center gap-2"><Button size="icon" variant="outline" onClick={() => handleActiveMonthChange(-1)}><ChevronLeft className="h-4 w-4" /></Button><span className="font-bold text-lg text-primary w-40 sm:w-48 text-center">{activeMonth.toLocaleString('es-ES', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}</span><Button size="icon" variant="outline" onClick={() => handleActiveMonthChange(1)}><ChevronRight className="h-4 w-4" /></Button></div>) : (<span className="font-bold text-lg text-destructive w-48 text-center">Inscripciones Cerradas</span>)}
                     <Button variant={activeMonth ? "destructive" : "default"} onClick={() => handleActiveMonthChange(activeMonth ? null : 0)}>{activeMonth ? "Desactivar Inscripciones" : "Activar Mes Actual"}</Button>
                 </CardContent>
             </Card>
 
             <Tabs defaultValue="students" className="w-full" onValueChange={setActiveTab}>
-                <div className="flex flex-wrap gap-4 justify-between items-center mb-4">
-                    <TabsList>
+                <div className="flex flex-col sm:flex-row flex-wrap gap-4 justify-between items-start sm:items-center mb-4">
+                    <TabsList className="self-start">
                         <TabsTrigger value="students">Reservas</TabsTrigger>
                         <TabsTrigger value="classes">Asistencia</TabsTrigger>
                         <TabsTrigger value="manage-classes">Gestionar Clases</TabsTrigger>
@@ -413,44 +417,48 @@ function AdminDashboard() {
                     <Card>
                         <CardHeader><CardTitle>Listado de Alumnas y sus Reservas</CardTitle></CardHeader>
                         <CardContent>
-                            <Table>
-                                <TableHeader><TableRow><TableHead>Alumna</TableHead><TableHead>Fecha Reserva</TableHead><TableHead>Bono</TableHead><TableHead>Precio</TableHead><TableHead>Estado Pago</TableHead><TableHead>Clases</TableHead><TableHead>Acciones</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {filteredBookings.length > 0 ? filteredBookings.map(booking => (
-                                        <TableRow key={booking.id}>
-                                            <TableCell className="font-medium"><div className="font-bold">{booking.student.name}</div><div className="text-sm text-muted-foreground">{booking.student.email}</div><div className="text-sm text-muted-foreground">{booking.student.phone}</div></TableCell>
-                                            <TableCell>{new Date(booking.bookingDate).toLocaleString('es-ES')}</TableCell>
-                                            <TableCell>{booking.packSize} clases</TableCell>
-                                            <TableCell>{booking.price}€</TableCell>
-                                            <TableCell><Select value={booking.paymentStatus} onValueChange={(newStatus) => handleBookingStatusChange(booking.id, newStatus as 'pending'|'completed')}><SelectTrigger className={cn("w-32", booking.paymentStatus === 'pending' && 'text-orange-500', booking.paymentStatus === 'completed' && 'text-green-600')}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pendiente</SelectItem><SelectItem value="completed">Realizado</SelectItem></SelectContent></Select></TableCell>
-                                            <TableCell><ul className="list-disc list-inside text-sm">{booking.classes.map(cls => (<li key={cls.id}>{cls.name} - {new Date(cls.date).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit'})} {cls.time}</li>))}</ul></TableCell>
-                                            <TableCell><Button variant="outline" size="icon" onClick={() => setEditingBooking(booking)}><Edit className="h-4 w-4" /></Button></TableCell>
-                                        </TableRow>
-                                    )) : <TableRow><TableCell colSpan={7} className="text-center h-24">No hay reservas para el mes seleccionado.</TableCell></TableRow>}
-                                </TableBody>
-                            </Table>
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Alumna</TableHead><TableHead>Fecha Reserva</TableHead><TableHead>Bono</TableHead><TableHead>Precio</TableHead><TableHead>Estado Pago</TableHead><TableHead>Clases</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {filteredBookings.length > 0 ? filteredBookings.map(booking => (
+                                            <TableRow key={booking.id}>
+                                                <TableCell className="font-medium whitespace-nowrap"><div className="font-bold">{booking.student.name}</div><div className="text-sm text-muted-foreground">{booking.student.email}</div><div className="text-sm text-muted-foreground">{booking.student.phone}</div></TableCell>
+                                                <TableCell className="whitespace-nowrap">{new Date(booking.bookingDate).toLocaleString('es-ES')}</TableCell>
+                                                <TableCell>{booking.packSize} clases</TableCell>
+                                                <TableCell>{booking.price}€</TableCell>
+                                                <TableCell><Select value={booking.paymentStatus} onValueChange={(newStatus) => handleBookingStatusChange(booking.id, newStatus as 'pending'|'completed')}><SelectTrigger className={cn("min-w-[120px]", booking.paymentStatus === 'pending' && 'text-orange-500', booking.paymentStatus === 'completed' && 'text-green-600')}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pendiente</SelectItem><SelectItem value="completed">Realizado</SelectItem></SelectContent></Select></TableCell>
+                                                <TableCell><ul className="list-disc list-inside text-sm whitespace-nowrap">{booking.classes.map(cls => (<li key={cls.id}>{cls.name} - {new Date(cls.date).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit'})} {cls.time}</li>))}</ul></TableCell>
+                                                <TableCell className="text-right"><Button variant="outline" size="icon" onClick={() => setEditingBooking(booking)}><Edit className="h-4 w-4" /></Button></TableCell>
+                                            </TableRow>
+                                        )) : <TableRow><TableCell colSpan={7} className="text-center h-24">No hay reservas para el mes seleccionado.</TableCell></TableRow>}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </CardContent>
-                        <CardFooter className="flex-col items-end gap-2 border-t pt-4">
+                        <CardFooter className="flex-col items-end gap-2 border-t pt-4 mt-4">
                             <div className="flex items-center gap-4"><p className="text-muted-foreground">Pagos Pendientes:</p><p className="font-bold text-lg">{paymentSummary.pendiente.toLocaleString('es-ES', {style:'currency', currency:'EUR'})}</p></div>
                             <div className="flex items-center gap-4"><p className="text-muted-foreground">Pagos Realizados:</p><p className="font-bold text-lg text-green-600">{paymentSummary.realizado.toLocaleString('es-ES', {style:'currency', currency:'EUR'})}</p></div>
                         </CardFooter>
                     </Card>
                 </TabsContent>
                 <TabsContent value="classes">
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{filteredClasses.length > 0 ? filteredClasses.map(({ classDetails, attendees }) => (<Card key={classDetails.id}><CardHeader><CardTitle>{classDetails.name}</CardTitle><CardDescription>{new Date(classDetails.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} a las {classDetails.time}<br/><span className="font-semibold">Profesora: {classDetails.teacher}</span> | Plazas: {classDetails.bookedSpots} / {classDetails.totalSpots}</CardDescription></CardHeader><CardContent><h4 className="font-semibold mb-2">Asistentes:</h4>{attendees.length > 0 ? (<ul className="list-disc list-inside text-sm">{attendees.map((attendee, index) => (<li key={`${classDetails.id}-${attendee.email}-${index}`}>{attendee.name}</li>))}</ul>) : (<p className="text-sm text-muted-foreground">No hay alumnas inscritas.</p>)}</CardContent></Card>)) : (<p className="text-sm text-muted-foreground text-center py-4">No hay clases programadas para el mes seleccionado.</p>)}</div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{filteredClasses.length > 0 ? filteredClasses.map(({ classDetails, attendees }) => (<Card key={classDetails.id}><CardHeader><CardTitle>{classDetails.name}</CardTitle><CardDescription>{new Date(classDetails.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} a las {classDetails.time}<br/><span className="font-semibold">Profesora: {classDetails.teacher}</span> | Plazas: {classDetails.bookedSpots} / {classDetails.totalSpots}</CardDescription></CardHeader><CardContent><h4 className="font-semibold mb-2">Asistentes:</h4>{attendees.length > 0 ? (<ul className="list-disc list-inside text-sm">{attendees.map((attendee, index) => (<li key={`${classDetails.id}-${attendee.email}-${index}`}>{attendee.name}</li>))}</ul>) : (<p className="text-sm text-muted-foreground">No hay alumnas inscritas.</p>)}</CardContent></Card>)) : (<div className="text-center text-muted-foreground py-10 col-span-full"><p>No hay clases programadas para el mes seleccionado.</p></div>)}</div>
                 </TabsContent>
                 <TabsContent value="manage-classes">
                     <Card>
-                        <CardHeader className="flex flex-row justify-between items-center"><div className="space-y-1"><CardTitle>Gestionar Clases</CardTitle><CardDescription>Añade, edita o elimina clases del calendario.</CardDescription></div><Button onClick={() => setIsCreationModalOpen(true)}><PlusCircle className="mr-2 h-4 w-4" /> Añadir Clase(s)</Button></CardHeader>
+                        <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"><div className="space-y-1"><CardTitle>Gestionar Clases</CardTitle><CardDescription>Añade, edita o elimina clases del calendario.</CardDescription></div><Button onClick={() => setIsCreationModalOpen(true)}><PlusCircle className="mr-2 h-4 w-4" /> Añadir Clase(s)</Button></CardHeader>
                         <CardContent>
-                            <Table>
-                                <TableHeader><TableRow><TableHead>Clase</TableHead><TableHead>Fecha y Hora</TableHead><TableHead>Profesora</TableHead><TableHead>Plazas</TableHead><TableHead>Acciones</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                    {allClasses.filter(c => { const d = new Date(c.date); return d.getFullYear() === displayDate.getFullYear() && d.getMonth() === displayDate.getMonth(); }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((classDetails) => (
-                                        <TableRow key={classDetails.id}><TableCell className="font-medium">{classDetails.name}</TableCell><TableCell>{new Date(classDetails.date).toLocaleDateString('es-ES')} - {classDetails.time}</TableCell><TableCell>{classDetails.teacher || 'N/A'}</TableCell><TableCell>{classDetails.bookedSpots} / {classDetails.totalSpots}</TableCell><TableCell className="space-x-2"><Button variant="outline" size="icon" onClick={() => { setEditingClass(classDetails); setIsClassModalOpen(true);}}><Edit className="h-4 w-4" /></Button><Button variant="destructive" size="icon" onClick={() => setClassToDelete(classDetails)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader><TableRow><TableHead>Clase</TableHead><TableHead>Fecha y Hora</TableHead><TableHead>Profesora</TableHead><TableHead>Plazas</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                        {allClasses.filter(c => { const d = new Date(c.date); return d.getFullYear() === displayDate.getFullYear() && d.getMonth() === displayDate.getMonth(); }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((classDetails) => (
+                                            <TableRow key={classDetails.id}><TableCell className="font-medium whitespace-nowrap">{classDetails.name}</TableCell><TableCell className="whitespace-nowrap">{new Date(classDetails.date).toLocaleDateString('es-ES')} - {classDetails.time}</TableCell><TableCell>{classDetails.teacher || 'N/A'}</TableCell><TableCell>{classDetails.bookedSpots} / {classDetails.totalSpots}</TableCell><TableCell className="text-right space-x-2"><Button variant="outline" size="icon" onClick={() => { setEditingClass(classDetails); setIsClassModalOpen(true);}}><Edit className="h-4 w-4" /></Button><Button variant="destructive" size="icon" onClick={() => setClassToDelete(classDetails)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
@@ -483,7 +491,7 @@ export function AdminManager() {
 
   if (!isAuthenticated) {
     return (
-        <div className="flex justify-center items-center h-[60vh]">
+        <div className="flex justify-center items-center h-[60vh] p-4">
             <Card className="w-full max-w-sm">
                 <CardHeader><CardTitle className="flex items-center gap-2"><Lock /> Acceso de Administrador</CardTitle><CardDescription>Introduce la contraseña para gestionar las reservas.</CardDescription></CardHeader>
                 <form onSubmit={handleLogin}>

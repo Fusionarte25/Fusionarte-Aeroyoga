@@ -44,7 +44,7 @@ function CustomDay(props: DayProps & {
   return (
     <div
       className={cn(
-        "relative flex h-full min-h-[110px] w-full flex-col p-1.5 border-t transition-colors",
+        "relative flex h-full min-h-[100px] sm:min-h-[110px] w-full flex-col p-1.5 border-t transition-colors",
         isDayInPast ? "bg-muted/50" : "hover:bg-accent",
         hasClasses && !isDayInPast && !isBookableMonth && "bg-secondary text-muted-foreground",
         hasClasses && !isDayInPast && isBookableMonth && "bg-primary/10",
@@ -151,18 +151,18 @@ function SuccessScreen({ booking, onNewBooking }: { booking: Booking; onNewBooki
 
   return (
       <div className="flex flex-col items-center justify-center text-center py-10 sm:py-16">
-          <Card className="w-full max-w-2xl p-6 sm:p-8 shadow-lg animate-in fade-in-50 zoom-in-95">
+          <Card className="w-full max-w-2xl p-4 sm:p-6 md:p-8 shadow-lg animate-in fade-in-50 zoom-in-95">
               <CardHeader>
                   <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto" />
-                  <CardTitle className="text-3xl mt-4">¡Reserva Confirmada!</CardTitle>
-                  <CardDescription className="text-lg mt-2 text-balance">
+                  <CardTitle className="text-2xl sm:text-3xl mt-4">¡Reserva Confirmada!</CardTitle>
+                  <CardDescription className="text-base sm:text-lg mt-2 text-balance">
                       Gracias, <span className="font-semibold text-primary">{booking.student.name}</span>. Tu reserva se ha completado con éxito.
                   </CardDescription>
               </CardHeader>
               <CardContent>
                   <p className="mb-4 text-muted-foreground">Hemos generado un comprobante en PDF para ti. Para cualquier duda, puedes contactarnos.</p>
                   <Separator className="my-6" />
-                  <h3 className="font-semibold text-xl mb-4 text-left">Resumen de tu bono de {booking.packSize} clases ({booking.price}€):</h3>
+                  <h3 className="font-semibold text-lg sm:text-xl mb-4 text-left">Resumen de tu bono de {booking.packSize} clases ({booking.price}€):</h3>
                   <ul className="space-y-3 text-left">
                       {booking.classes.map((cls: AeroClass) => (
                           <li key={cls.id} className="flex items-center justify-between bg-secondary p-3 rounded-lg">
@@ -175,11 +175,11 @@ function SuccessScreen({ booking, onNewBooking }: { booking: Booking; onNewBooki
                       ))}
                   </ul>
               </CardContent>
-              <CardFooter className="flex-col sm:flex-row gap-4">
-                  <Button size="lg" className="w-full text-lg" onClick={handleDownloadReceipt} variant="outline">
+              <CardFooter className="flex-col sm:flex-row gap-4 mt-4">
+                  <Button size="lg" className="w-full text-base sm:text-lg" onClick={handleDownloadReceipt} variant="outline">
                       <Download className="mr-2 h-5 w-5"/> Descargar Comprobante PDF
                   </Button>
-                  <Button size="lg" className="w-full text-lg mt-4 sm:mt-0" onClick={onNewBooking}>
+                  <Button size="lg" className="w-full text-base sm:text-lg" onClick={onNewBooking}>
                       Hacer una nueva reserva
                   </Button>
               </CardFooter>
@@ -339,18 +339,18 @@ export function AeroClassManager() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 md:space-y-8">
       <header className="flex flex-col items-center text-center">
         <Wind className="w-12 h-12 text-primary" />
-        <h1 className="font-headline text-4xl font-bold mt-2">Fusionarte</h1>
-        <p className="text-muted-foreground mt-1">Selecciona tu pack, elige tus clases y prepárate para volar.</p>
+        <h1 className="font-headline text-3xl sm:text-4xl font-bold mt-2">Fusionarte</h1>
+        <p className="text-muted-foreground mt-1 max-w-prose">Selecciona tu pack, elige tus clases y prepárate para volar.</p>
       </header>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-1 space-y-8">
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><FileText className="text-primary"/>Paso 1: Tus Datos</CardTitle>
+                    <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl"><FileText className="text-primary"/>Paso 1: Tus Datos</CardTitle>
                     <CardDescription>Completa tus datos para la reserva.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -371,16 +371,16 @@ export function AeroClassManager() {
 
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2"><Users className="text-primary"/>Paso 2: Elige Tu Bono</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl"><Users className="text-primary"/>Paso 2: Elige Tu Bono</CardTitle>
                 <CardDescription>Selecciona un bono mensual para empezar a reservar.</CardDescription>
               </CardHeader>
               <CardContent>
                 {isLoading ? <Skeleton className="h-24 w-full" /> : (
                   <RadioGroup onValueChange={handleSelectPack} value={packSize?.toString() ?? ''} disabled={bookingState === 'submitting'}>
                       {classPacks.sort((a,b) => a.classes - b.classes).map(pack => (
-                          <div key={pack.id} className="flex items-center space-x-2 p-4 rounded-md has-[:checked]:bg-accent has-[:checked]:shadow-inner">
+                          <div key={pack.id} className="flex items-center space-x-2 p-3 sm:p-4 rounded-md has-[:checked]:bg-accent has-[:checked]:shadow-inner">
                               <RadioGroupItem value={pack.classes.toString()} id={`p${pack.classes}`} />
-                              <Label htmlFor={`p${pack.classes}`} className="text-base flex-grow cursor-pointer">{pack.name} - {pack.price}€</Label>
+                              <Label htmlFor={`p${pack.classes}`} className="text-sm sm:text-base flex-grow cursor-pointer">{pack.name} - {pack.price}€</Label>
                           </div>
                       ))}
                   </RadioGroup>
@@ -392,7 +392,7 @@ export function AeroClassManager() {
         <div className="lg:col-span-2">
             <Card className="shadow-lg hover:shadow-xl transition-shadow">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><CalendarDays className="text-primary"/>Paso 3: Selecciona Clases</CardTitle>
+                    <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl"><CalendarDays className="text-primary"/>Paso 3: Selecciona Clases</CardTitle>
                     {activeBookingMonth ? (
                         <CardDescription>
                             Mes de inscripción: <span className="font-semibold text-primary">{activeBookingMonth.toLocaleString('es-ES', { month: 'long', year: 'numeric' })}</span>.
@@ -449,7 +449,7 @@ export function AeroClassManager() {
       <div className="mt-8">
         <Card className="shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2"><List className="text-primary"/>Paso 4: Confirma tu Reserva</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-xl sm:text-2xl"><List className="text-primary"/>Paso 4: Confirma tu Reserva</CardTitle>
               {packSize !== null ? (
                   <CardDescription>
                       Has seleccionado <span className="font-bold text-primary">{selectedClasses.length}</span> de <span className="font-bold text-primary">{packSize}</span> clases.
@@ -464,11 +464,11 @@ export function AeroClassManager() {
                     <ul className="space-y-3">
                         {selectedClasses.map(cls => (
                             <li key={cls.id} className="flex items-center justify-between bg-secondary p-3 rounded-lg animate-in fade-in-20">
-                                <div>
+                                <div className="pr-4">
                                     <p className="font-semibold">{cls.name} - {cls.date.toLocaleDateString('es-ES', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
                                     <p className="text-sm text-muted-foreground">a las {cls.time}</p>
                                 </div>
-                                <Button variant="ghost" size="icon" onClick={() => handleRemoveClass(cls.id)} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full h-8 w-8" disabled={bookingState === 'submitting'}>
+                                <Button variant="ghost" size="icon" onClick={() => handleRemoveClass(cls.id)} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full h-8 w-8 flex-shrink-0" disabled={bookingState === 'submitting'}>
                                     <Trash2 className="h-4 w-4"/>
                                     <span className="sr-only">Quitar</span>
                                 </Button>
