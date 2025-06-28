@@ -8,10 +8,7 @@ export async function fetchClasses() {
   const today = new Date();
   today.setHours(0,0,0,0);
 
-  return allClasses.filter(c => {
-    const classDate = new Date(c.date);
-    return classDate >= today;
-  });
+  return allClasses;
 }
 
 export async function getActiveBookingMonth() {
@@ -63,6 +60,15 @@ export async function addClass(classData: Omit<AeroClass, 'id' | 'bookedSpots' |
     }
 }
 
+export async function addRecurringClasses(data: any) {
+    try {
+        const newClasses = bookingService.addRecurringClasses(data);
+        return { success: true, classes: JSON.parse(JSON.stringify(newClasses)) };
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
+    }
+}
+
 export async function updateClass(classData: Omit<AeroClass, 'date'> & { date: string }) {
     try {
         const updatedClass = bookingService.updateClass(classData);
@@ -79,6 +85,15 @@ export async function deleteClass(classId: string) {
         return { success: true };
     } catch (error) {
         return { success: false, error: (error as Error).message };
+    }
+}
+
+export async function getTeacherStats(year: number, month: number) {
+    try {
+        const stats = bookingService.getTeacherStats(year, month);
+        return { success: true, stats };
+    } catch (error) {
+        return { success: false, error: (error as Error).message, stats: {} };
     }
 }
 

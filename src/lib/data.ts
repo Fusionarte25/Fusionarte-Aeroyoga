@@ -231,6 +231,38 @@ export function addClass(classData: Omit<AeroClass, 'id' | 'bookedSpots' | 'date
   return newClass;
 }
 
+export function addRecurringClasses(data: {
+    name: string;
+    day: number;
+    time: string;
+    teacher: string;
+    totalSpots: number;
+    months: number[];
+    year: number;
+}): AeroClass[] {
+    const createdClasses: AeroClass[] = [];
+    data.months.forEach(monthIndex => {
+        const daysInMonth = new Date(data.year, monthIndex + 1, 0).getDate();
+        for (let day = 1; day <= daysInMonth; day++) {
+            const date = new Date(data.year, monthIndex, day);
+            if (date.getDay() === data.day) {
+                const newClass: AeroClass = {
+                    id: `class-${data.year}-${monthIndex + 1}-${day}-${data.time.replace(':', '')}-${Math.random()}`,
+                    name: data.name,
+                    date,
+                    time: data.time,
+                    totalSpots: data.totalSpots,
+                    bookedSpots: 0,
+                    teacher: data.teacher,
+                };
+                store.classes.push(newClass);
+                createdClasses.push(newClass);
+            }
+        }
+    });
+    return createdClasses;
+}
+
 export function updateClass(classData: Omit<AeroClass, 'date'> & { date: string }): AeroClass | null {
     const classIndex = store.classes.findIndex(c => c.id === classData.id);
     if(classIndex === -1) return null;
@@ -255,4 +287,19 @@ export function deleteClass(classId: string): boolean {
   
   store.classes.splice(classIndex, 1);
   return true;
+}
+
+export function getTeacherStats(year: number, month: number) {
+    const stats: Record<string, number> = {};
+    const classesInMonth = store.classes.filter(c => {
+        const classDate = new Date(c.date);
+        return classDate.getFullYear() === year && classDate.getMonth() === month;
+    });
+
+    classesInMonth.forEach(c => {
+        if (c.teacher) {
+            stats[c.teacher] = (stats[c.teacher] || 0) + 1;
+        }
+    });
+    return stats;
 }

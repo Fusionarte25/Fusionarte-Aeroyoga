@@ -1,11 +1,11 @@
 "use client"
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Download, Lock, LogIn, PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { addClass, deleteClass, fetchAdminData, getActiveBookingMonth, getClassCsv, getStudentCsv, setActiveBookingMonth, updateClass, updateBookingClasses } from '@/app/actions';
+import { Download, Lock, LogIn, PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight, BarChart2 } from 'lucide-react';
+import { addClass, addRecurringClasses, deleteClass, fetchAdminData, getActiveBookingMonth, getClassCsv, getStudentCsv, setActiveBookingMonth, updateClass, updateBookingClasses, getTeacherStats } from '@/app/actions';
 import type { AeroClass, Booking } from '@/lib/types';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,13 +15,155 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
+
 
 type ClassWithAttendees = {
     classDetails: AeroClass;
     attendees: { name: string; email: string; phone: string; }[];
 }
 
-function ClassForm({ classData, onSave, onCancel }: {
+const weekdayOptions = [
+    { label: 'Domingo', value: 0 },
+    { label: 'Lunes', value: 1 },
+    { label: 'Martes', value: 2 },
+    { label: 'Miércoles', value: 3 },
+    { label: 'Jueves', value: 4 },
+    { label: 'Viernes', value: 5 },
+    { label: 'Sábado', value: 6 },
+];
+
+const monthOptions = [
+    { label: 'Enero', value: 0 }, { label: 'Febrero', value: 1 }, { label: 'Marzo', value: 2 },
+    { label: 'Abril', value: 3 }, { label: 'Mayo', value: 4 }, { label: 'Junio', value: 5 },
+    { label: 'Julio', value: 6 }, { label: 'Agosto', value: 7 }, { label: 'Septiembre', value: 8 },
+    { label: 'Octubre', value: 9 }, { label: 'Noviembre', value: 10 }, { label: 'Diciembre', value: 11 },
+];
+
+function ClassCreationForm({ onSave, onCancel }: {
+    onSave: (type: 'single' | 'recurring', data: any) => void;
+    onCancel: () => void;
+}) {
+    const [type, setType] = useState<'single' | 'recurring'>('single');
+    const [formData, setFormData] = useState({
+        name: 'Aeroyoga',
+        date: '',
+        time: '',
+        totalSpots: 7,
+        teacher: 'Alexandra',
+        day: 2, // Martes
+        months: [] as number[],
+        year: new Date().getFullYear(),
+    });
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement> | React.ChangeEvent<HTMLSelectElement>) => {
+        const { name, value, type } = e.target;
+        setFormData(prev => ({ ...prev, [name]: type === 'number' ? parseInt(value, 10) : value }));
+    };
+
+    const handleSelectChange = (name: string, value: string) => {
+        setFormData(prev => ({ ...prev, [name]: parseInt(value, 10) }));
+    };
+
+    const handleMonthChange = (monthValue: number) => {
+        setFormData(prev => {
+            const newMonths = prev.months.includes(monthValue)
+                ? prev.months.filter(m => m !== monthValue)
+                : [...prev.months, monthValue];
+            return { ...prev, months: newMonths };
+        });
+    }
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const { year, months, day, ...rest } = formData;
+        if (type === 'single') {
+            onSave('single', { ...rest, date: formData.date });
+        } else {
+            if (months.length === 0) {
+                 toast({ variant: "destructive", title: "Error", description: "Debes seleccionar al menos un mes." });
+                 return;
+            }
+            onSave('recurring', { ...rest, day, months, year });
+        }
+    }
+
+    return (
+        <form onSubmit={handleSubmit} className="space-y-4">
+             <RadioGroup onValueChange={(v) => setType(v as 'single' | 'recurring')} value={type} className="flex gap-4">
+                <div className="flex items-center space-x-2"><RadioGroupItem value="single" id="r-single" /><Label htmlFor="r-single">Clase Única</Label></div>
+                <div className="flex items-center space-x-2"><RadioGroupItem value="recurring" id="r-recurring" /><Label htmlFor="r-recurring">Clase Regular</Label></div>
+            </RadioGroup>
+            
+            <Separator />
+
+            <div className="space-y-2">
+                <Label htmlFor="name">Nombre de la Clase</Label>
+                <Input id="name" name="name" value={formData.name} onChange={handleChange} required />
+            </div>
+             <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <Label htmlFor="totalSpots">Plazas Totales</Label>
+                    <Input id="totalSpots" name="totalSpots" type="number" value={formData.totalSpots} onChange={handleChange} required />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="teacher">Profesor/a</Label>
+                    <Input id="teacher" name="teacher" value={formData.teacher} onChange={handleChange} />
+                </div>
+            </div>
+
+            {type === 'single' ? (
+                 <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="date">Fecha</Label>
+                        <Input id="date" name="date" type="date" value={formData.date} onChange={handleChange} required />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="time">Hora</Label>
+                        <Input id="time" name="time" type="time" value={formData.time} onChange={handleChange} required />
+                    </div>
+                </div>
+            ) : (
+                <>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label>Día de la Semana</Label>
+                            <Select onValueChange={(v) => handleSelectChange('day', v)} defaultValue={formData.day.toString()}>
+                                <SelectTrigger><SelectValue/></SelectTrigger>
+                                <SelectContent>
+                                    {weekdayOptions.map(opt => <SelectItem key={opt.value} value={opt.value.toString()}>{opt.label}</SelectItem>)}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                         <div className="space-y-2">
+                            <Label htmlFor="time">Hora</Label>
+                            <Input id="time" name="time" type="time" value={formData.time} onChange={handleChange} required />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Meses de Aplicación ({formData.year})</Label>
+                        <div className="grid grid-cols-3 gap-2">
+                            {monthOptions.map(month => (
+                                <div key={month.value} className="flex items-center space-x-2">
+                                    <Checkbox id={`m-${month.value}`} checked={formData.months.includes(month.value)} onCheckedChange={() => handleMonthChange(month.value)} />
+                                    <Label htmlFor={`m-${month.value}`} className="font-normal">{month.label}</Label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </>
+            )}
+
+            <DialogFooter>
+                <Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button>
+                <Button type="submit">Guardar Clase(s)</Button>
+            </DialogFooter>
+        </form>
+    );
+}
+
+function EditClassForm({ classData, onSave, onCancel }: {
     classData: Partial<AeroClass> | null;
     onSave: (data: any) => void;
     onCancel: () => void;
@@ -139,6 +281,73 @@ function EditBookingForm({ booking, allClasses, onSave, onCancel }: {
     )
 }
 
+function StatisticsTab() {
+    const [date, setDate] = useState(new Date());
+    const [stats, setStats] = useState<Record<string, number> | null>(null);
+    const { toast } = useToast();
+
+    const fetchStats = useCallback(async (year: number, month: number) => {
+        setStats(null); // Show loading state
+        const result = await getTeacherStats(year, month);
+        if (result.success) {
+            setStats(result.stats);
+        } else {
+            toast({ variant: 'destructive', title: 'Error', description: 'No se pudieron cargar las estadísticas.' });
+            setStats({});
+        }
+    }, [toast]);
+    
+    useEffect(() => {
+        fetchStats(date.getFullYear(), date.getMonth());
+    }, [date, fetchStats]);
+
+    const handleMonthChange = (offset: number) => {
+        setDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Estadísticas por Profesor</CardTitle>
+                <CardDescription>Consulta cuántas clases ha impartido cada profesor en el mes seleccionado.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="flex items-center gap-4 mb-6">
+                    <h3 className="text-sm font-semibold">Seleccionar Mes:</h3>
+                    <div className="flex items-center gap-2">
+                        <Button size="icon" variant="outline" onClick={() => handleMonthChange(-1)}><ChevronLeft className="h-4 w-4" /></Button>
+                        <span className="font-bold text-lg text-primary w-48 text-center">{date.toLocaleString('es-ES', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}</span>
+                        <Button size="icon" variant="outline" onClick={() => handleMonthChange(1)}><ChevronRight className="h-4 w-4" /></Button>
+                    </div>
+                </div>
+
+                {!stats ? <Skeleton className="h-24 w-full" /> : (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Profesor/a</TableHead>
+                                <TableHead className="text-right">Nº de Clases</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {Object.keys(stats).length > 0 ? Object.entries(stats).map(([teacher, count]) => (
+                                <TableRow key={teacher}>
+                                    <TableCell className="font-medium">{teacher}</TableCell>
+                                    <TableCell className="text-right font-bold text-lg">{count}</TableCell>
+                                </TableRow>
+                            )) : (
+                                <TableRow>
+                                    <TableCell colSpan={2} className="text-center h-24">No hay datos para este mes.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
 function AdminDashboard() {
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [classesWithAttendees, setClassesWithAttendees] = useState<ClassWithAttendees[]>([]);
@@ -148,6 +357,7 @@ function AdminDashboard() {
     const { toast } = useToast();
     
     const [isClassModalOpen, setIsClassModalOpen] = useState(false);
+    const [isCreationModalOpen, setIsCreationModalOpen] = useState(false);
     const [editingClass, setEditingClass] = useState<AeroClass | null>(null);
     const [classToDelete, setClassToDelete] = useState<AeroClass | null>(null);
     const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
@@ -204,8 +414,7 @@ function AdminDashboard() {
     };
 
     const handleOpenAddModal = () => {
-        setEditingClass(null);
-        setIsClassModalOpen(true);
+        setIsCreationModalOpen(true);
     };
 
     const handleOpenEditModal = (cls: AeroClass) => {
@@ -214,13 +423,25 @@ function AdminDashboard() {
     };
     
     const handleSaveClass = async (classFormData: any) => {
-        const result = editingClass
-            ? await updateClass({ ...classFormData, id: editingClass.id, bookedSpots: editingClass.bookedSpots })
-            : await addClass(classFormData);
+        const result = await updateClass({ ...classFormData, id: editingClass!.id, bookedSpots: editingClass!.bookedSpots });
+        if (result.success) {
+            toast({ title: "¡Éxito!", description: `Clase actualizada correctamente.` });
+            setIsClassModalOpen(false);
+            loadData();
+        } else {
+            toast({ variant: "destructive", title: "Error", description: result.error });
+        }
+    };
+
+     const handleCreateClasses = async (type: 'single' | 'recurring', data: any) => {
+        const result = type === 'single'
+            ? await addClass(data)
+            : await addRecurringClasses(data);
 
         if (result.success) {
-            toast({ title: "¡Éxito!", description: `Clase ${editingClass ? 'actualizada' : 'creada'} correctamente.` });
-            setIsClassModalOpen(false);
+            const count = result.classes?.length || 1;
+            toast({ title: "¡Éxito!", description: `${count} clase(s) creada(s) correctamente.` });
+            setIsCreationModalOpen(false);
             loadData();
         } else {
             toast({ variant: "destructive", title: "Error", description: result.error });
@@ -298,9 +519,10 @@ function AdminDashboard() {
             <Tabs defaultValue="students" className="w-full" onValueChange={setActiveTab}>
                 <div className="flex flex-wrap gap-4 justify-between items-center mb-4">
                     <TabsList>
-                        <TabsTrigger value="students">Reservas por Alumna</TabsTrigger>
-                        <TabsTrigger value="classes">Asistencia por Clase</TabsTrigger>
+                        <TabsTrigger value="students">Reservas</TabsTrigger>
+                        <TabsTrigger value="classes">Asistencia</TabsTrigger>
                         <TabsTrigger value="manage-classes">Gestionar Clases</TabsTrigger>
+                        <TabsTrigger value="stats">Estadísticas</TabsTrigger>
                     </TabsList>
                     {(activeTab === 'students' || activeTab === 'classes') && (
                         <Button onClick={handleExport} variant="outline">
@@ -319,10 +541,10 @@ function AdminDashboard() {
                                 <TableHeader>
                                     <TableRow>
                                         <TableHead>Nombre</TableHead>
+                                        <TableHead>Email</TableHead>
+                                        <TableHead>Teléfono</TableHead>
                                         <TableHead>Bono</TableHead>
-                                        <TableHead>Precio</TableHead>
-                                        <TableHead>Clases Reservadas</TableHead>
-                                        <TableHead className="hidden lg:table-cell">Fecha Reserva</TableHead>
+                                        <TableHead>Clases</TableHead>
                                         <TableHead>Acciones</TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -330,8 +552,9 @@ function AdminDashboard() {
                                     {bookings.length > 0 ? bookings.map(booking => (
                                         <TableRow key={booking.id}>
                                             <TableCell className="font-medium">{booking.student.name}</TableCell>
-                                            <TableCell>{booking.packSize} clases</TableCell>
-                                            <TableCell>{booking.price}€</TableCell>
+                                            <TableCell>{booking.student.email}</TableCell>
+                                            <TableCell>{booking.student.phone}</TableCell>
+                                            <TableCell>{booking.packSize} clases ({booking.price}€)</TableCell>
                                             <TableCell>
                                                 <ul className="list-disc list-inside text-sm">
                                                     {booking.classes.map(cls => (
@@ -341,7 +564,6 @@ function AdminDashboard() {
                                                     ))}
                                                 </ul>
                                             </TableCell>
-                                            <TableCell className="hidden lg:table-cell">{new Date(booking.bookingDate).toLocaleString('es-ES')}</TableCell>
                                             <TableCell>
                                                 <Button variant="outline" size="icon" onClick={() => setEditingBooking(booking)}><Edit className="h-4 w-4" /></Button>
                                             </TableCell>
@@ -357,25 +579,30 @@ function AdminDashboard() {
                     </Card>
                 </TabsContent>
                 <TabsContent value="classes">
-                    <Card>
-                        <CardHeader><CardTitle>Listado de Asistencia por Clase</CardTitle></CardHeader>
-                        <CardContent className="space-y-4">
-                            {classesWithAttendees.length > 0 ? classesWithAttendees.filter(cwa => new Date(cwa.classDetails.date) > new Date(Date.now() - 86400000)).map(({ classDetails, attendees }) => (
-                                <Card key={classDetails.id}>
-                                    <CardHeader>
-                                        <CardTitle>{classDetails.name} - {new Date(classDetails.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} a las {classDetails.time}</CardTitle>
-                                        <CardDescription>
-                                            Plazas: {classDetails.bookedSpots} / {classDetails.totalSpots}
-                                            {classDetails.teacher && ` - Profesora: ${classDetails.teacher}`}
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        {attendees.length > 0 ? (<Table><TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Email</TableHead><TableHead>Teléfono</TableHead></TableRow></TableHeader><TableBody>{attendees.map((attendee, index) => (<TableRow key={`${classDetails.id}-${attendee.email}-${index}`}><TableCell>{attendee.name}</TableCell><TableCell>{attendee.email}</TableCell><TableCell>{attendee.phone}</TableCell></TableRow>))}</TableBody></Table>) : (<p className="text-sm text-muted-foreground text-center py-4">No hay alumnas inscritas.</p>)}
-                                    </CardContent>
-                                </Card>
-                            )) : (<p className="text-sm text-muted-foreground text-center py-4">No hay clases programadas.</p>)}
-                        </CardContent>
-                    </Card>
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {classesWithAttendees.length > 0 ? classesWithAttendees.filter(cwa => new Date(cwa.classDetails.date) > new Date(Date.now() - 86400000)).map(({ classDetails, attendees }) => (
+                            <Card key={classDetails.id}>
+                                <CardHeader>
+                                    <CardTitle>{classDetails.name}</CardTitle>
+                                    <CardDescription>
+                                        {new Date(classDetails.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} a las {classDetails.time}
+                                        <br/>
+                                        <span className="font-semibold">Profesora: {classDetails.teacher}</span> | Plazas: {classDetails.bookedSpots} / {classDetails.totalSpots}
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <h4 className="font-semibold mb-2">Asistentes:</h4>
+                                    {attendees.length > 0 ? (
+                                        <ul className="list-disc list-inside text-sm">
+                                            {attendees.map((attendee, index) => (
+                                                <li key={`${classDetails.id}-${attendee.email}-${index}`}>{attendee.name}</li>
+                                            ))}
+                                        </ul>
+                                    ) : (<p className="text-sm text-muted-foreground">No hay alumnas inscritas.</p>)}
+                                </CardContent>
+                            </Card>
+                        )) : (<p className="text-sm text-muted-foreground text-center py-4">No hay clases programadas.</p>)}
+                    </div>
                 </TabsContent>
                 <TabsContent value="manage-classes">
                     <Card>
@@ -384,7 +611,7 @@ function AdminDashboard() {
                                 <CardTitle>Gestionar Clases</CardTitle>
                                 <CardDescription>Añade, edita o elimina clases del calendario.</CardDescription>
                             </div>
-                            <Button onClick={handleOpenAddModal}><PlusCircle className="mr-2 h-4 w-4" /> Añadir Clase</Button>
+                            <Button onClick={handleOpenAddModal}><PlusCircle className="mr-2 h-4 w-4" /> Añadir Clase(s)</Button>
                         </CardHeader>
                         <CardContent>
                             <Table>
@@ -395,7 +622,8 @@ function AdminDashboard() {
                                 </TableHeader>
                                 <TableBody>
                                     {allClasses
-                                        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                        .filter(c => new Date(c.date) >= new Date(Date.now() - 86400000))
+                                        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
                                         .map((classDetails) => (
                                         <TableRow key={classDetails.id}>
                                             <TableCell className="font-medium">{classDetails.name}</TableCell>
@@ -413,15 +641,27 @@ function AdminDashboard() {
                         </CardContent>
                     </Card>
                 </TabsContent>
+                <TabsContent value="stats">
+                    <StatisticsTab />
+                </TabsContent>
             </Tabs>
             
             <Dialog open={isClassModalOpen} onOpenChange={setIsClassModalOpen}>
                 <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
-                        <DialogTitle>{editingClass ? 'Editar' : 'Añadir Nueva'} Clase</DialogTitle>
-                        <DialogDescription>Completa los detalles de la clase.</DialogDescription>
+                        <DialogTitle>Editar Clase</DialogTitle>
                     </DialogHeader>
-                    <ClassForm classData={editingClass} onSave={handleSaveClass} onCancel={() => setIsClassModalOpen(false)} />
+                    <EditClassForm classData={editingClass} onSave={handleSaveClass} onCancel={() => setIsClassModalOpen(false)} />
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={isCreationModalOpen} onOpenChange={setIsCreationModalOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Crear Nuevas Clases</DialogTitle>
+                        <DialogDescription>Elige si quieres añadir una clase única o una clase regular para varios meses.</DialogDescription>
+                    </DialogHeader>
+                    <ClassCreationForm onSave={handleCreateClasses} onCancel={() => setIsCreationModalOpen(false)} />
                 </DialogContent>
             </Dialog>
 

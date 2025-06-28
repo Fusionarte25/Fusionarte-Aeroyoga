@@ -45,12 +45,12 @@ function CustomDay(props: DayProps & {
       className={cn(
         "relative flex h-full min-h-[110px] w-full flex-col p-1.5 border-t transition-colors",
         isDayInPast ? "bg-muted/50" : "hover:bg-accent",
-        hasClasses && !isDayInPast && !isBookableMonth && "bg-muted/70",
+        hasClasses && !isDayInPast && !isBookableMonth && "bg-secondary text-muted-foreground",
         hasClasses && !isDayInPast && isBookableMonth && "bg-primary/10",
         isSelectedDay && "bg-primary/20 ring-2 ring-primary z-10"
       )}
     >
-      <time dateTime={date.toISOString()} className={cn("self-start text-sm", isDayInPast && "text-muted-foreground line-through", !isBookableMonth && "text-muted-foreground")}>
+      <time dateTime={date.toISOString()} className={cn("self-start text-sm", (isDayInPast || !isBookableMonth) && "text-muted-foreground", isDayInPast && "line-through")}>
         {date.getDate()}
       </time>
       {hasClasses && !isDayInPast && (
@@ -60,7 +60,7 @@ function CustomDay(props: DayProps & {
               <AccordionTrigger className="-my-1 p-1 text-xs hover:no-underline justify-center [&[data-state=open]>svg]:hidden [&[data-state=closed]>svg]:hidden">
                 <div className={cn(
                     "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-                    isBookableMonth ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90" : "border-transparent bg-secondary text-secondary-foreground"
+                    isBookableMonth ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90" : "border-transparent bg-secondary text-secondary-foreground cursor-not-allowed"
                 )}>
                     {dayClasses.length} {dayClasses.length > 1 ? 'clases' : 'clase'}
                 </div>
@@ -154,7 +154,7 @@ Para cualquier duda, puedes contactarnos.
                   </CardDescription>
               </CardHeader>
               <CardContent>
-                  <p className="mb-4 text-muted-foreground">Para cualquier duda, puedes contactarnos. No se envían correos de confirmación por el momento.</p>
+                  <p className="mb-4 text-muted-foreground">Recibirás un resumen por correo electrónico. Para cualquier duda, puedes contactarnos.</p>
                   <Separator className="my-6" />
                   <h3 className="font-semibold text-xl mb-4 text-left">Resumen de tu bono de {booking.packSize} clases ({booking.price}€):</h3>
                   <ul className="space-y-3 text-left">
@@ -225,7 +225,7 @@ export function AeroClassManager() {
         }
     }
     loadInitialData();
-  }, [])
+  }, [toast])
 
   const handleSelectPack = (value: string) => {
     const newPackSize = parseInt(value, 10)
@@ -245,7 +245,7 @@ export function AeroClassManager() {
         return;
     }
     if (!packSize) {
-      toast({ variant: "destructive", title: "¡Uy!", description: "Por favor, selecciona primero un pack de clases." })
+      toast({ variant: "destructive", title: "¡Uy!", description: "Por favor, selecciona primero un bono de clases." })
       return
     }
     const isSelected = selectedClasses.some(c => c.id === classToSelect.id)
@@ -404,7 +404,7 @@ export function AeroClassManager() {
                             mode="single"
                             month={currentMonth}
                             onMonthChange={setCurrentMonth}
-                            fromMonth={new Date()}
+                            fromMonth={new Date(new Date().getFullYear(), new Date().getMonth() -1, 1)}
                             onDayClick={() => {}}
                             components={{ Day: (props: DayProps) => (
                               <CustomDay 
