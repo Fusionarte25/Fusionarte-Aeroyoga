@@ -47,7 +47,7 @@ function CustomDay(props: DayProps & {
       className={cn(
         "relative flex h-full min-h-[90px] sm:min-h-[110px] w-full flex-col p-1.5 border-t transition-colors",
         isDayInPast ? "bg-muted/50" : "hover:bg-accent",
-        hasClasses && !isDayInPast && !isBookableMonth && "bg-secondary text-muted-foreground",
+        hasClasses && !isDayInPast && !isBookableMonth && "bg-amber-100/50 dark:bg-amber-900/30",
         hasClasses && !isDayInPast && isBookableMonth && "bg-primary/10",
         isSelectedDay && "bg-primary/20 ring-2 ring-primary z-10"
       )}
@@ -62,9 +62,11 @@ function CustomDay(props: DayProps & {
               <AccordionTrigger className="-my-1 p-1 text-xs hover:no-underline justify-center [&[data-state=open]>svg]:hidden [&[data-state=closed]>svg]:hidden">
                 <div className={cn(
                     "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-                    isBookableMonth ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90" : "border-transparent bg-secondary text-secondary-foreground cursor-not-allowed"
+                    isBookableMonth 
+                        ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90" 
+                        : "border-transparent bg-amber-300 text-amber-900 dark:bg-amber-800 dark:text-amber-100 cursor-not-allowed"
                 )}>
-                    {dayClasses.length} {dayClasses.length > 1 ? 'clases' : 'clase'}
+                    Clases
                 </div>
               </AccordionTrigger>
               <AccordionContent className="space-y-1 pb-1 mt-1">
@@ -435,12 +437,12 @@ export function AeroClassManager() {
                                   onValueChange={handleCustomPackSelection}
                                   disabled={bookingState === 'submitting'}
                               >
-                                  <SelectTrigger className="max-w-[180px]">
+                                  <SelectTrigger className="w-full sm:max-w-[220px]">
                                       <SelectValue placeholder="Selecciona" />
                                   </SelectTrigger>
                                   <SelectContent>
                                       {customPackPrices && Array.from({ length: 12 }, (_, i) => i + 1).map(num => (
-                                          <SelectItem key={num} value={num.toString()}>
+                                          <SelectItem key={num} value={num.toString()} disabled={!customPackPrices[num.toString()]}>
                                               {num} {num > 1 ? 'clases' : 'clase'} - {customPackPrices[num.toString()]}€
                                           </SelectItem>
                                       ))}
