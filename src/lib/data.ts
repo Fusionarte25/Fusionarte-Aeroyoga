@@ -33,15 +33,12 @@ export async function getActiveBookingMonth(): Promise<Date | null> {
   try {
     const result = await pool.query("SELECT value FROM settings WHERE key = 'activeBookingMonth'");
     if (result.rows.length === 0 || !result.rows[0].value) {
-      // If no setting found, return a sensible default but don't write to DB.
-      // The setup script is responsible for the initial state.
-      const defaultMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-      return defaultMonth;
+      return null;
     }
     return new Date(result.rows[0].value);
   } catch (error) {
-      console.error("Could not fetch active booking month. Please run DB setup script.", error);
-      return new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      console.error("Could not fetch active booking month. This is likely a DB connection/setup issue.", error);
+      return null;
   }
 }
 
@@ -61,7 +58,7 @@ export async function setActiveBookingMonth(year: number | null, month: number |
     );
     return newActiveMonth;
   } catch(error) {
-      console.error(`Error in setActiveBookingMonth:`, error);
+      console.error(`Error in setActiveBookingMonth. This is likely a DB connection/setup issue.`, error);
       throw error;
   }
   finally {
@@ -74,7 +71,7 @@ export async function getClasses(): Promise<AeroClass[]> {
     const result = await pool.query('SELECT * FROM classes ORDER BY date, time ASC');
     return result.rows.map(mapToAeroClass);
   } catch (error) {
-    console.error("Could not fetch classes. Please run DB setup script.", error);
+    console.error("Could not fetch classes. This is likely a DB connection/setup issue.", error);
     return [];
   }
 }
@@ -98,7 +95,7 @@ export async function getBookings(): Promise<Booking[]> {
       return mapToBooking(row, bookingClasses);
     });
   } catch (error) {
-    console.error("Could not fetch bookings. Please run DB setup script.", error);
+    console.error("Could not fetch bookings. This is likely a DB connection/setup issue.", error);
     return [];
   }
 }
@@ -144,7 +141,7 @@ export async function addBooking(student: Student, selectedClasses: Pick<AeroCla
 
   } catch (e) {
     await client.query('ROLLBACK');
-    console.error('Error in addBooking:', e);
+    console.error('Error in addBooking. This is likely a DB connection/setup issue.', e);
     throw e;
   } finally {
     client.release();
@@ -216,7 +213,7 @@ export async function updateFullBooking(bookingId: number, updates: { student: S
 
     } catch(e) {
         await client.query('ROLLBACK');
-        console.error(`Error in updateFullBooking for bookingId ${bookingId}:`, e);
+        console.error(`Error in updateFullBooking for bookingId ${bookingId}. This is likely a DB connection/setup issue.`, e);
         throw e;
     } finally {
         client.release();
@@ -239,7 +236,7 @@ export async function updateBookingStatus(bookingId: number, status: 'pending' |
         
         return mapToBooking(updatedBookingRow, classes);
     } catch (error) {
-        console.error(`Error in updateBookingStatus for bookingId ${bookingId}:`, error);
+        console.error(`Error in updateBookingStatus for bookingId ${bookingId}. This is likely a DB connection/setup issue.`, error);
         throw error;
     }
 }
@@ -280,7 +277,7 @@ export async function addClass(classData: Omit<AeroClass, 'id' | 'bookedSpots' |
     }
     return mapToAeroClass(result.rows[0]);
   } catch (error) {
-      console.error('Error in addClass:', error);
+      console.error('Error in addClass. This is likely a DB connection/setup issue.', error);
       throw error;
   }
 }
@@ -316,7 +313,7 @@ export async function addRecurringClasses(data: {
         return createdClasses;
     } catch (e) {
         await client.query('ROLLBACK');
-        console.error('Error in addRecurringClasses:', e);
+        console.error('Error in addRecurringClasses. This is likely a DB connection/setup issue.', e);
         throw e;
     } finally {
         client.release();
@@ -333,7 +330,7 @@ export async function updateClass(classData: Omit<AeroClass, 'date'> & { date: s
       if (result.rows.length === 0) return null;
       return mapToAeroClass(result.rows[0]);
     } catch (error) {
-        console.error(`Error in updateClass for classId ${classData.id}:`, error);
+        console.error(`Error in updateClass for classId ${classData.id}. This is likely a DB connection/setup issue.`, error);
         throw error;
     }
 }
@@ -352,7 +349,7 @@ export async function deleteClass(classId: string): Promise<boolean> {
     return true;
   } catch(e) {
     await client.query('ROLLBACK');
-    console.error(`Error in deleteClass for classId ${classId}:`, e);
+    console.error(`Error in deleteClass for classId ${classId}. This is likely a DB connection/setup issue.`, e);
     throw e;
   } finally {
     client.release();
@@ -375,7 +372,7 @@ export async function getTeacherStats(year: number, month: number): Promise<Reco
         });
         return stats;
     } catch(error) {
-        console.error("Could not fetch teacher stats. Please run DB setup script.", error);
+        console.error("Could not fetch teacher stats. This is likely a DB connection/setup issue.", error);
         return {};
     }
 }
@@ -391,7 +388,7 @@ export async function getCustomPackPrices(): Promise<Record<string, number>> {
         });
         return prices;
     } catch (error) {
-        console.error("Could not fetch custom pack prices. Please run DB setup script.", error);
+        console.error("Could not fetch custom pack prices. This is likely a DB connection/setup issue.", error);
         return {};
     }
 }
@@ -414,7 +411,7 @@ export async function updateCustomPackPrices(prices: Record<string, number>): Pr
         return await getCustomPackPrices();
     } catch(e) {
         await client.query('ROLLBACK');
-        console.error('Error in updateCustomPackPrices:', e);
+        console.error('Error in updateCustomPackPrices. This is likely a DB connection/setup issue.', e);
         throw e;
     } finally {
         client.release();
@@ -431,7 +428,7 @@ export async function getClassPacks(): Promise<ClassPack[]> {
             price: parseFloat(row.price),
         }));
     } catch (error) {
-        console.error("Could not fetch class packs. Please run DB setup script.", error);
+        console.error("Could not fetch class packs. This is likely a DB connection/setup issue.", error);
         return [];
     }
 }
@@ -447,7 +444,7 @@ export async function addClassPack(packData: Omit<ClassPack, 'id'>): Promise<Cla
       const row = result.rows[0];
       return { ...row, classes: parseInt(row.classes), price: parseFloat(row.price) };
     } catch (error) {
-        console.error('Error in addClassPack:', error);
+        console.error('Error in addClassPack. This is likely a DB connection/setup issue.', error);
         throw error;
     }
 }
@@ -465,7 +462,7 @@ export async function updateClassPack(packData: ClassPack): Promise<ClassPack> {
       const row = result.rows[0];
       return { ...row, classes: parseInt(row.classes), price: parseFloat(row.price) };
     } catch (error) {
-        console.error(`Error in updateClassPack for packId ${packData.id}:`, error);
+        console.error(`Error in updateClassPack for packId ${packData.id}. This is likely a DB connection/setup issue.`, error);
         throw error;
     }
 }
@@ -475,7 +472,7 @@ export async function deleteClassPack(packId: string): Promise<boolean> {
       const result = await pool.query('DELETE FROM class_packs WHERE id = $1', [packId]);
       return result.rowCount > 0;
     } catch (error) {
-        console.error(`Error in deleteClassPack for packId ${packId}:`, error);
+        console.error(`Error in deleteClassPack for packId ${packId}. This is likely a DB connection/setup issue.`, error);
         throw error;
     }
 }
