@@ -52,9 +52,26 @@ async function initializeDatabase() {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         classes INTEGER NOT NULL,
-        price NUMERIC(10, 2) NOT NULL
+        price NUMERIC(10, 2) NOT NULL,
+        type TEXT NOT NULL DEFAULT 'standard'
       );
     `);
+
+    // --- Schema Migrations ---
+    // Safely add the 'type' column to class_packs if it doesn't exist
+    const columnCheck = await client.query(`
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_name='class_packs' AND column_name='type'
+    `);
+
+    if (columnCheck.rowCount === 0) {
+      console.log("Migrating class_packs table: adding 'type' column...");
+      await client.query(`
+          ALTER TABLE class_packs ADD COLUMN type TEXT NOT NULL DEFAULT 'standard';
+      `);
+      console.log("Migration complete.");
+    }
+
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS custom_pack_prices (
@@ -67,10 +84,10 @@ async function initializeDatabase() {
     const packsCount = await client.query('SELECT COUNT(*) FROM class_packs');
     if (packsCount.rows[0].count === '0') {
       await client.query(`
-        INSERT INTO class_packs (id, name, classes, price) VALUES
-        ('4', '4 Clases / mes', 4, 65),
-        ('8', '8 Clases / mes', 8, 110),
-        ('12', '12 Clases / mes', 12, 150);
+        INSERT INTO class_packs (id, name, classes, price, type) VALUES
+        ('4', '4 Clases / mes', 4, 65, 'standard'),
+        ('8', '8 Clases / mes', 8, 110, 'standard'),
+        ('12', '12 Clases / mes', 12, 150, 'standard');
       `);
       console.log('Seeded default class packs.');
     }

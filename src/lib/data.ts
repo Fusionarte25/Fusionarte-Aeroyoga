@@ -421,7 +421,7 @@ export async function updateCustomPackPrices(prices: Record<string, number>): Pr
 // Pack Management
 export async function getClassPacks(): Promise<ClassPack[]> {
     try {
-        const result = await pool.query('SELECT * FROM class_packs ORDER BY classes ASC');
+        const result = await pool.query('SELECT * FROM class_packs ORDER BY type, classes ASC');
         return result.rows.map(row => ({
             ...row,
             classes: parseInt(row.classes, 10),
@@ -433,13 +433,12 @@ export async function getClassPacks(): Promise<ClassPack[]> {
     }
 }
 
-export async function addClassPack(packData: Omit<ClassPack, 'id'>): Promise<ClassPack> {
+export async function addClassPack(packData: Omit<ClassPack, 'id'> & { id: string }): Promise<ClassPack> {
     try {
-      const { name, classes, price } = packData;
-      const newId = classes.toString();
+      const { id, name, classes, price, type } = packData;
       const result = await pool.query(
-          'INSERT INTO class_packs (id, name, classes, price) VALUES ($1, $2, $3, $4) ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name, price=EXCLUDED.price RETURNING *',
-          [newId, name, classes, price]
+          'INSERT INTO class_packs (id, name, classes, price, type) VALUES ($1, $2, $3, $4, $5) ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name, price=EXCLUDED.price, type=EXCLUDED.type RETURNING *',
+          [id, name, classes, price, type]
       );
       const row = result.rows[0];
       return { ...row, classes: parseInt(row.classes), price: parseFloat(row.price) };
@@ -451,6 +450,8 @@ export async function addClassPack(packData: Omit<ClassPack, 'id'>): Promise<Cla
 
 export async function updateClassPack(packData: ClassPack): Promise<ClassPack> {
     try {
+      // For simplicity, we don't allow changing the ID, type, or class count of an existing pack.
+      // Only name and price can be updated.
       const { id, name, price } = packData;
       const result = await pool.query(
           'UPDATE class_packs SET name = $1, price = $2 WHERE id = $3 RETURNING *',

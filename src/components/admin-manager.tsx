@@ -273,6 +273,11 @@ function ManagePacksTab({ classPacks, onPacksUpdate }: { classPacks: ClassPack[]
         setIsSavingCustom(false);
     };
 
+    const getPackTypeLabel = (type: ClassPack['type']) => {
+        const labels = { standard: 'Estándar', fixed_monthly: 'Fijo Mensual' };
+        return labels[type] || type;
+    }
+
     return (
         <>
             <div className="space-y-6">
@@ -314,9 +319,9 @@ function ManagePacksTab({ classPacks, onPacksUpdate }: { classPacks: ClassPack[]
                     <CardContent>
                         <div className="overflow-x-auto">
                             <Table>
-                                <TableHeader><TableRow><TableHead>Nombre del Bono</TableHead><TableHead>Nº de Clases</TableHead><TableHead>Precio</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
+                                <TableHeader><TableRow><TableHead>Nombre del Bono</TableHead><TableHead>Tipo</TableHead><TableHead>Clases</TableHead><TableHead>Precio</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
                                 <TableBody>
-                                    {classPacks.map((pack) => (<TableRow key={pack.id}><TableCell className="font-medium">{pack.name}</TableCell><TableCell>{pack.classes}</TableCell><TableCell>{pack.price}€</TableCell><TableCell className="text-right space-x-2"><Button variant="outline" size="icon" onClick={() => { setEditingPack(pack); setIsPackModalOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="destructive" size="icon" onClick={() => setPackToDelete(pack)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>))}
+                                    {classPacks.map((pack) => (<TableRow key={pack.id}><TableCell className="font-medium">{pack.name}</TableCell><TableCell>{getPackTypeLabel(pack.type)}</TableCell><TableCell>{pack.type === 'standard' ? pack.classes : 'N/A'}</TableCell><TableCell>{pack.price}€</TableCell><TableCell className="text-right space-x-2"><Button variant="outline" size="icon" onClick={() => { setEditingPack(pack); setIsPackModalOpen(true); }}><Edit className="h-4 w-4" /></Button><Button variant="destructive" size="icon" onClick={() => setPackToDelete(pack)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>))}
                                 </TableBody>
                             </Table>
                         </div>
@@ -330,14 +335,70 @@ function ManagePacksTab({ classPacks, onPacksUpdate }: { classPacks: ClassPack[]
 }
 
 function PackForm({ pack, onSave, onCancel }: { pack: ClassPack | null, onSave: (data: any) => void, onCancel: () => void }) {
-    const [formData, setFormData] = useState({ name: pack?.name || '', classes: pack?.classes || 1, price: pack?.price || 0 });
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => { const { name, value, type } = e.target; setFormData(prev => ({ ...prev, [name]: type === 'number' ? parseFloat(value) : value })); };
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave(formData); };
+    const [formData, setFormData] = useState({ 
+        name: pack?.name || '', 
+        classes: pack?.classes || 1, 
+        price: pack?.price || 0,
+        type: pack?.type || 'standard' as ClassPack['type'],
+    });
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => { 
+        const { name, value, type } = e.target; 
+        setFormData(prev => ({ ...prev, [name]: type === 'number' ? parseFloat(value) : value })); 
+    };
+    
+    const handleTypeChange = (newType: ClassPack['type']) => {
+        setFormData(prev => ({ ...prev, type: newType }));
+    }
+
+    const handleSubmit = (e: React.FormEvent) => { 
+        e.preventDefault(); 
+        
+        let dataToSave;
+        if (pack) { // Editing
+            dataToSave = { ...formData, id: pack.id };
+        } else { // Creating
+            const id = formData.type === 'standard'
+                ? formData.classes.toString()
+                : formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+            if (!id) {
+                alert("El nombre del bono fijo no puede estar vacío y debe generar un ID válido.");
+                return;
+            }
+            dataToSave = { ...formData, id };
+        }
+
+        onSave(dataToSave);
+    };
+    
+    const isEditing = !!pack;
+    const isFixedType = formData.type === 'fixed_monthly';
+
     return (<form onSubmit={handleSubmit} className="space-y-4 pt-4">
+        <div className="space-y-2">
+            <Label>Tipo de Bono</Label>
+            <Select onValueChange={handleTypeChange} value={formData.type} disabled={isEditing}>
+                <SelectTrigger><SelectValue/></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="standard">Estándar (Nº de clases fijo)</SelectItem>
+                    <SelectItem value="fixed_monthly">Fijo Mensual (Horario fijo)</SelectItem>
+                </SelectContent>
+            </Select>
+            {isEditing && <p className="text-xs text-muted-foreground">El tipo de bono no se puede cambiar una vez creado.</p>}
+        </div>
+
         <div className="space-y-2"><Label htmlFor="name">Nombre del Bono</Label><Input id="name" name="name" value={formData.name} onChange={handleChange} required/></div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2"><Label htmlFor="classes">Nº de Clases</Label><Input id="classes" name="classes" type="number" value={formData.classes} onChange={handleChange} required disabled={!!pack} /></div>
-            <div className="space-y-2"><Label htmlFor="price">Precio (€)</Label><Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} required/></div>
+            <div className="space-y-2">
+                <Label htmlFor="classes">Nº de Clases</Label>
+                <Input id="classes" name="classes" type="number" value={formData.classes} onChange={handleChange} required disabled={isEditing || isFixedType} />
+                {isFixedType && <p className="text-xs text-muted-foreground">No aplica para bonos fijos mensuales.</p>}
+            </div>
+            <div className="space-y-2">
+                <Label htmlFor="price">Precio (€)</Label>
+                <Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} required/>
+                {isFixedType && <p className="text-xs text-muted-foreground">Esta será la cuota mensual.</p>}
+            </div>
         </div>
         <DialogFooter><Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button><Button type="submit">Guardar Bono</Button></DialogFooter>
     </form>)

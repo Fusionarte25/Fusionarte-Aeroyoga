@@ -3,6 +3,7 @@ export interface ClassPack {
   name: string;
   classes: number;
   price: number;
+  type: 'standard' | 'fixed_monthly';
 }
 
 export interface AeroClass {
