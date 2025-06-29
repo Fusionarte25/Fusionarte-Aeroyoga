@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Download, Lock, LogIn, PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight, BarChart2, DollarSign, Settings, Loader2, Clock } from 'lucide-react';
-import { addClass, addRecurringClasses, deleteClass, fetchAdminData, getActiveBookingMonth, getClassCsv, getStudentCsv, setActiveBookingMonth, updateClass, updateFullBooking, getTeacherStats, fetchPacks, updateBookingStatus, addClassPack, updateClassPack, deleteClassPack, getCustomPackPrices, updateCustomPackPrices } from '@/app/actions';
+import { addClass, addRecurringClasses, deleteClass, fetchAdminData, getActiveBookingMonth, getClassCsv, getStudentCsv, setActiveBookingMonth, updateClass, updateFullBooking, getTeacherStats, fetchPacks, updateBookingStatus, addClassPack, updateClassPack, deleteClassPack, getCustomPackPrices, updateCustomPackPrices, deleteBooking } from '@/app/actions';
 import type { AeroClass, Booking, ClassPack } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
@@ -407,7 +407,7 @@ function PackForm({ pack, onSave, onCancel }: { pack: ClassPack | null, onSave: 
 }
 
 function MonthNavigator({ date, onDateChange }: { date: Date, onDateChange: (newDate: Date) => void }) {
-    return (<div className="flex items-center gap-2"><Button size="icon" variant="outline" onClick={() => onDateChange(new Date(date.getFullYear(), date.getMonth() - 1, 1))}><ChevronLeft className="h-4 w-4" /></Button><span className="font-bold text-lg text-primary w-40 sm:w-48 text-center">{date.toLocaleString('es-ES', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}</span><Button size="icon" variant="outline" onClick={() => onDateChange(new Date(date.getFullYear(), date.getMonth() + 1, 1))}><ChevronRight className="h-4 w-4" /></Button></div>)
+    return (<div className="flex items-center gap-2"><Button size="icon" variant="outline" onClick={() => onDateChange(new Date(date.getFullYear(), date.getMonth() - 1, 1))}><ChevronLeft className="h-4 w-4" /></Button><span className="font-bold text-base sm:text-lg text-primary w-36 sm:w-48 text-center">{date.toLocaleString('es-ES', { month: 'long', year: 'numeric' }).replace(/^\w/, c => c.toUpperCase())}</span><Button size="icon" variant="outline" onClick={() => onDateChange(new Date(date.getFullYear(), date.getMonth() + 1, 1))}><ChevronRight className="h-4 w-4" /></Button></div>)
 }
 
 function AdminDashboard() {
@@ -424,6 +424,7 @@ function AdminDashboard() {
     const [editingClass, setEditingClass] = useState<AeroClass | null>(null);
     const [classToDelete, setClassToDelete] = useState<AeroClass | null>(null);
     const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
+    const [bookingToDelete, setBookingToDelete] = useState<Booking | null>(null);
     const [activeMonth, setActiveMonth] = useState<Date | null>(null);
     const [displayDate, setDisplayDate] = useState(new Date());
 
@@ -477,6 +478,19 @@ function AdminDashboard() {
         const result = await deleteClass(classToDelete.id);
         if (result.success) { toast({ title: "Clase Eliminada" }); setClassToDelete(null); loadData(); }
         else { toast({ variant: "destructive", title: "Error al eliminar", description: result.error }); setClassToDelete(null); }
+    };
+
+    const handleDeleteBooking = async () => {
+        if (!bookingToDelete) return;
+        const result = await deleteBooking(bookingToDelete.id);
+        if (result.success) {
+            toast({ title: "Reserva Eliminada" });
+            setBookingToDelete(null);
+            loadData();
+        } else {
+            toast({ variant: "destructive", title: "Error al eliminar", description: result.error });
+            setBookingToDelete(null);
+        }
     };
     
     const handleSaveBookingChanges = async (bookingId: number, updates: any) => {
@@ -569,7 +583,7 @@ function AdminDashboard() {
                                                 <TableCell>{booking.price}€</TableCell>
                                                 <TableCell><Select value={booking.paymentStatus} onValueChange={(newStatus) => handleBookingStatusChange(booking.id, newStatus as 'pending'|'completed')}><SelectTrigger className={cn("min-w-[120px]", booking.paymentStatus === 'pending' && 'text-orange-500', booking.paymentStatus === 'completed' && 'text-green-600')}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pendiente</SelectItem><SelectItem value="completed">Realizado</SelectItem></SelectContent></Select></TableCell>
                                                 <TableCell><ul className="list-disc list-inside text-sm whitespace-nowrap">{booking.classes.map(cls => (<li key={cls.id}>{cls.name} - {new Date(cls.date).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit'})} {cls.time.slice(0, 5)}</li>))}</ul></TableCell>
-                                                <TableCell className="text-right"><Button variant="outline" size="icon" onClick={() => setEditingBooking(booking)}><Edit className="h-4 w-4" /></Button></TableCell>
+                                                <TableCell className="text-right space-x-2"><Button variant="outline" size="icon" onClick={() => setEditingBooking(booking)}><Edit className="h-4 w-4" /></Button><Button variant="destructive" size="icon" onClick={() => setBookingToDelete(booking)}><Trash2 className="h-4 w-4" /></Button></TableCell>
                                             </TableRow>
                                         )) : <TableRow><TableCell colSpan={7} className="text-center h-24">No hay reservas para el mes seleccionado.</TableCell></TableRow>}
                                     </TableBody>
@@ -614,6 +628,7 @@ function AdminDashboard() {
             <Dialog open={isCreationModalOpen} onOpenChange={setIsCreationModalOpen}><DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Crear Nuevas Clases</DialogTitle><DialogDescription>Elige si quieres añadir una clase única o una clase regular para varios meses.</DialogDescription></DialogHeader><ClassCreationForm onSave={handleCreateClasses} onCancel={() => setIsCreationModalOpen(false)} /></DialogContent></Dialog>
             <AlertDialog open={!!classToDelete} onOpenChange={(open) => !open && setClassToDelete(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>¿Estás seguro?</AlertDialogTitle><AlertDialogDescription>Se eliminará la clase "{classToDelete?.name}" del {classToDelete ? new Date(classToDelete.date).toLocaleDateString('es-ES') : ''}.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setClassToDelete(null)}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleDeleteClass}>Eliminar</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
             <Dialog open={!!editingBooking} onOpenChange={(open) => !open && setEditingBooking(null)}><DialogContent className="max-w-2xl"><DialogHeader><DialogTitle>Editar Reserva</DialogTitle></DialogHeader>{editingBooking && <EditBookingForm booking={editingBooking} allClasses={allClasses} onSave={handleSaveBookingChanges} onCancel={() => setEditingBooking(null)} />}</DialogContent></Dialog>
+            <AlertDialog open={!!bookingToDelete} onOpenChange={(open) => !open && setBookingToDelete(null)}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>¿Confirmas la eliminación?</AlertDialogTitle><AlertDialogDescription>Esta acción eliminará permanentemente la reserva de "{bookingToDelete?.student.name}". Las plazas de las clases asociadas serán liberadas. Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel onClick={() => setBookingToDelete(null)}>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleDeleteBooking}>Eliminar Reserva</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog>
         </>
     );
 }

@@ -92,7 +92,7 @@ function CustomDay(props: DayProps & {
                       )}
                     >
                       <div className="flex justify-between items-center">
-                          <p className="font-semibold truncate">{cls.name}</p>
+                          <p className="font-semibold">{cls.name}</p>
                           {isSelected && <CheckCircle2 className="h-4 w-4 shrink-0" />}
                       </div>
                       <div className={cn(

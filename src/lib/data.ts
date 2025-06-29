@@ -241,6 +241,39 @@ export async function updateBookingStatus(bookingId: number, status: 'pending' |
     }
 }
 
+export async function deleteBooking(bookingId: number): Promise<boolean> {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Get the booking to find out which classes to update
+    const bookingResult = await client.query('SELECT class_ids FROM bookings WHERE id = $1 FOR UPDATE', [bookingId]);
+    if (bookingResult.rows.length === 0) {
+      // If booking is already gone, consider it a success.
+      await client.query('COMMIT');
+      return true;
+    }
+    const classIds: string[] = bookingResult.rows[0].class_ids;
+
+    // Decrement the booked_spots for each class associated with the booking
+    if (classIds && classIds.length > 0) {
+      await client.query('UPDATE classes SET booked_spots = GREATEST(0, booked_spots - 1) WHERE id = ANY($1::text[])', [classIds]);
+    }
+
+    // Delete the booking itself
+    await client.query('DELETE FROM bookings WHERE id = $1', [bookingId]);
+
+    await client.query('COMMIT');
+    return true;
+  } catch (e) {
+    await client.query('ROLLBACK');
+    console.error(`Error in deleteBooking for bookingId ${bookingId}. This is likely a DB connection/setup issue.`, e);
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 export async function getClassesWithAttendees() {
   const [classes, bookings] = await Promise.all([getClasses(), getBookings()]);
   

@@ -45,6 +45,15 @@ export async function updateBookingStatus(bookingId: number, status: 'pending' |
     }
 }
 
+export async function deleteBooking(bookingId: number) {
+    try {
+        await db.deleteBooking(bookingId);
+        return { success: true };
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
+    }
+}
+
 
 export async function fetchAdminData() {
     const [bookings, classesWithAttendees, allClasses] = await Promise.all([
