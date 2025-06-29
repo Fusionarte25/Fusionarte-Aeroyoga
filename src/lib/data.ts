@@ -40,7 +40,7 @@ export async function getActiveBookingMonth(): Promise<Date | null> {
     }
     return new Date(result.rows[0].value);
   } catch (error) {
-      console.error("Could not fetch active booking month, returning default. Please run DB setup script.", error);
+      console.error("Could not fetch active booking month. Please run DB setup script.", error);
       return new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   }
 }
@@ -60,7 +60,11 @@ export async function setActiveBookingMonth(year: number | null, month: number |
       [newActiveMonth ? newActiveMonth.toISOString() : null]
     );
     return newActiveMonth;
-  } finally {
+  } catch(error) {
+      console.error(`Error in setActiveBookingMonth:`, error);
+      throw error;
+  }
+  finally {
     client.release();
   }
 }
@@ -140,6 +144,7 @@ export async function addBooking(student: Student, selectedClasses: Pick<AeroCla
 
   } catch (e) {
     await client.query('ROLLBACK');
+    console.error('Error in addBooking:', e);
     throw e;
   } finally {
     client.release();
@@ -211,6 +216,7 @@ export async function updateFullBooking(bookingId: number, updates: { student: S
 
     } catch(e) {
         await client.query('ROLLBACK');
+        console.error(`Error in updateFullBooking for bookingId ${bookingId}:`, e);
         throw e;
     } finally {
         client.release();
@@ -218,19 +224,24 @@ export async function updateFullBooking(bookingId: number, updates: { student: S
 }
 
 export async function updateBookingStatus(bookingId: number, status: 'pending' | 'completed'): Promise<Booking> {
-    const result = await pool.query(
-        "UPDATE bookings SET payment_status = $1 WHERE id = $2 RETURNING *",
-        [status, bookingId]
-    );
-    if (result.rows.length === 0) throw new Error("Reserva no encontrada");
+    try {
+        const result = await pool.query(
+            "UPDATE bookings SET payment_status = $1 WHERE id = $2 RETURNING *",
+            [status, bookingId]
+        );
+        if (result.rows.length === 0) throw new Error("Reserva no encontrada");
 
-    const updatedBookingRow = result.rows[0];
-    const classesResult = updatedBookingRow.class_ids.length > 0
-        ? await pool.query('SELECT * FROM classes WHERE id = ANY($1::text[])', [updatedBookingRow.class_ids])
-        : { rows: [] };
-    const classes = classesResult.rows.map(mapToAeroClass);
-    
-    return mapToBooking(updatedBookingRow, classes);
+        const updatedBookingRow = result.rows[0];
+        const classesResult = updatedBookingRow.class_ids.length > 0
+            ? await pool.query('SELECT * FROM classes WHERE id = ANY($1::text[])', [updatedBookingRow.class_ids])
+            : { rows: [] };
+        const classes = classesResult.rows.map(mapToAeroClass);
+        
+        return mapToBooking(updatedBookingRow, classes);
+    } catch (error) {
+        console.error(`Error in updateBookingStatus for bookingId ${bookingId}:`, error);
+        throw error;
+    }
 }
 
 export async function getClassesWithAttendees() {
@@ -254,19 +265,24 @@ export async function getClassesWithAttendees() {
 }
 
 export async function addClass(classData: Omit<AeroClass, 'id' | 'bookedSpots' | 'date'> & { date: string }): Promise<AeroClass> {
-  const { name, date, time, totalSpots, teacher } = classData;
-  const dateObj = new Date(date);
-  dateObj.setUTCHours(0, 0, 0, 0); // Normalize date to avoid timezone issues
-  const newId = `class-${dateObj.getTime()}-${time.replace(':', '')}`;
-  
-  const result = await pool.query(
-    'INSERT INTO classes (id, name, date, time, total_spots, teacher) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING RETURNING *',
-    [newId, name, date, time, totalSpots, teacher]
-  );
-  if (result.rows.length === 0) {
-    throw new Error("Una clase idéntica ya existe en esa fecha y hora.");
+  try {
+    const { name, date, time, totalSpots, teacher } = classData;
+    const dateObj = new Date(date);
+    dateObj.setUTCHours(0, 0, 0, 0); // Normalize date to avoid timezone issues
+    const newId = `class-${dateObj.getTime()}-${time.replace(':', '')}`;
+    
+    const result = await pool.query(
+      'INSERT INTO classes (id, name, date, time, total_spots, teacher) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING RETURNING *',
+      [newId, name, date, time, totalSpots, teacher]
+    );
+    if (result.rows.length === 0) {
+      throw new Error("Una clase idéntica ya existe en esa fecha y hora.");
+    }
+    return mapToAeroClass(result.rows[0]);
+  } catch (error) {
+      console.error('Error in addClass:', error);
+      throw error;
   }
-  return mapToAeroClass(result.rows[0]);
 }
 
 export async function addRecurringClasses(data: {
@@ -300,6 +316,7 @@ export async function addRecurringClasses(data: {
         return createdClasses;
     } catch (e) {
         await client.query('ROLLBACK');
+        console.error('Error in addRecurringClasses:', e);
         throw e;
     } finally {
         client.release();
@@ -307,13 +324,18 @@ export async function addRecurringClasses(data: {
 }
 
 export async function updateClass(classData: Omit<AeroClass, 'date'> & { date: string }): Promise<AeroClass | null> {
-    const { id, name, date, time, totalSpots, teacher } = classData;
-    const result = await pool.query(
-        'UPDATE classes SET name = $1, date = $2, time = $3, total_spots = $4, teacher = $5 WHERE id = $6 RETURNING *',
-        [name, new Date(date), time, totalSpots, teacher, id]
-    );
-    if (result.rows.length === 0) return null;
-    return mapToAeroClass(result.rows[0]);
+    try {
+      const { id, name, date, time, totalSpots, teacher } = classData;
+      const result = await pool.query(
+          'UPDATE classes SET name = $1, date = $2, time = $3, total_spots = $4, teacher = $5 WHERE id = $6 RETURNING *',
+          [name, new Date(date), time, totalSpots, teacher, id]
+      );
+      if (result.rows.length === 0) return null;
+      return mapToAeroClass(result.rows[0]);
+    } catch (error) {
+        console.error(`Error in updateClass for classId ${classData.id}:`, error);
+        throw error;
+    }
 }
 
 export async function deleteClass(classId: string): Promise<boolean> {
@@ -330,6 +352,7 @@ export async function deleteClass(classId: string): Promise<boolean> {
     return true;
   } catch(e) {
     await client.query('ROLLBACK');
+    console.error(`Error in deleteClass for classId ${classId}:`, e);
     throw e;
   } finally {
     client.release();
@@ -391,6 +414,7 @@ export async function updateCustomPackPrices(prices: Record<string, number>): Pr
         return await getCustomPackPrices();
     } catch(e) {
         await client.query('ROLLBACK');
+        console.error('Error in updateCustomPackPrices:', e);
         throw e;
     } finally {
         client.release();
@@ -413,30 +437,45 @@ export async function getClassPacks(): Promise<ClassPack[]> {
 }
 
 export async function addClassPack(packData: Omit<ClassPack, 'id'>): Promise<ClassPack> {
-    const { name, classes, price } = packData;
-    const newId = classes.toString();
-    const result = await pool.query(
-        'INSERT INTO class_packs (id, name, classes, price) VALUES ($1, $2, $3, $4) ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name, price=EXCLUDED.price RETURNING *',
-        [newId, name, classes, price]
-    );
-    const row = result.rows[0];
-    return { ...row, classes: parseInt(row.classes), price: parseFloat(row.price) };
+    try {
+      const { name, classes, price } = packData;
+      const newId = classes.toString();
+      const result = await pool.query(
+          'INSERT INTO class_packs (id, name, classes, price) VALUES ($1, $2, $3, $4) ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name, price=EXCLUDED.price RETURNING *',
+          [newId, name, classes, price]
+      );
+      const row = result.rows[0];
+      return { ...row, classes: parseInt(row.classes), price: parseFloat(row.price) };
+    } catch (error) {
+        console.error('Error in addClassPack:', error);
+        throw error;
+    }
 }
 
 export async function updateClassPack(packData: ClassPack): Promise<ClassPack> {
-    const { id, name, price } = packData;
-    const result = await pool.query(
-        'UPDATE class_packs SET name = $1, price = $2 WHERE id = $3 RETURNING *',
-        [name, price, id]
-    );
-     if (result.rows.length === 0) {
-        throw new Error(`Bono con id ${id} no encontrado.`);
+    try {
+      const { id, name, price } = packData;
+      const result = await pool.query(
+          'UPDATE class_packs SET name = $1, price = $2 WHERE id = $3 RETURNING *',
+          [name, price, id]
+      );
+      if (result.rows.length === 0) {
+          throw new Error(`Bono con id ${id} no encontrado.`);
+      }
+      const row = result.rows[0];
+      return { ...row, classes: parseInt(row.classes), price: parseFloat(row.price) };
+    } catch (error) {
+        console.error(`Error in updateClassPack for packId ${packData.id}:`, error);
+        throw error;
     }
-    const row = result.rows[0];
-    return { ...row, classes: parseInt(row.classes), price: parseFloat(row.price) };
 }
 
 export async function deleteClassPack(packId: string): Promise<boolean> {
-    const result = await pool.query('DELETE FROM class_packs WHERE id = $1', [packId]);
-    return result.rowCount > 0;
+    try {
+      const result = await pool.query('DELETE FROM class_packs WHERE id = $1', [packId]);
+      return result.rowCount > 0;
+    } catch (error) {
+        console.error(`Error in deleteClassPack for packId ${packId}:`, error);
+        throw error;
+    }
 }
