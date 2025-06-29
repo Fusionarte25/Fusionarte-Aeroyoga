@@ -290,6 +290,8 @@ export function AeroClassManager() {
         setSelectedPackType('standard');
         setPackSize(null);
         setTotalPrice(null);
+    } else {
+        setSelectedPackType(null);
     }
   }
   
@@ -528,6 +530,16 @@ export function AeroClassManager() {
                           </div>
                       )}
                   </RadioGroup>
+                )}
+                {selectedPackType && (
+                    <div className="mt-4 p-3 bg-primary/10 border-l-4 border-primary rounded-r-md animate-in fade-in-50">
+                        <p className="text-sm text-foreground/90">
+                            {selectedPackType === 'standard' 
+                                ? "Con este bono, tienes total libertad. Elige y combina las clases que quieras del calendario del mes activo hasta completar tu bono."
+                                : "¡Ideal para crear una rutina! Con este bono, eliges un horario fijo (ej: todos los martes a las 17:00) que se repetirá durante todo el mes."
+                            }
+                        </p>
+                    </div>
                 )}
               </CardContent>
             </Card>
