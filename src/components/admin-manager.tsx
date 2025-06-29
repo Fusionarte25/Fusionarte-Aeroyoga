@@ -135,7 +135,7 @@ function EditClassForm({ classData, onSave, onCancel }: { classData: Partial<Aer
     )
 }
 
-function EditBookingForm({ booking, allClasses, onSave, onCancel }: { booking: Booking; allClasses: AeroClass[]; onSave: (bookingId: string, updates: any) => void; onCancel: () => void; }) {
+function EditBookingForm({ booking, allClasses, onSave, onCancel }: { booking: Booking; allClasses: AeroClass[]; onSave: (bookingId: number, updates: any) => void; onCancel: () => void; }) {
     const [student, setStudent] = useState(booking.student);
     const [price, setPrice] = useState(booking.price);
     const [packSize, setPackSize] = useState(booking.packSize);
@@ -409,13 +409,13 @@ function AdminDashboard() {
         else { toast({ variant: "destructive", title: "Error al eliminar", description: result.error }); setClassToDelete(null); }
     };
     
-    const handleSaveBookingChanges = async (bookingId: string, updates: any) => {
+    const handleSaveBookingChanges = async (bookingId: number, updates: any) => {
         const result = await updateFullBooking(bookingId, updates);
         if (result.success) { toast({ title: "¡Éxito!", description: "Reserva actualizada." }); setEditingBooking(null); loadData(); }
         else { toast({ variant: "destructive", title: "Error", description: result.error }); }
     };
 
-    const handleBookingStatusChange = async (bookingId: string, status: 'pending' | 'completed') => {
+    const handleBookingStatusChange = async (bookingId: number, status: 'pending' | 'completed') => {
         const result = await updateBookingStatus(bookingId, status);
         if (result.success) { toast({ title: "Estado del pago actualizado" }); loadData(); }
         else { toast({ variant: "destructive", title: "Error", description: result.error }); }
@@ -555,7 +555,12 @@ export function AdminManager() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === 'admin') { setIsAuthenticated(true); setError(''); }
+    // In a real app, use a secure backend authentication method.
+    // This is for demonstration purposes only.
+    if (password === (process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'admin')) { 
+      setIsAuthenticated(true); 
+      setError(''); 
+    }
     else { setError('Contraseña incorrecta.'); }
   };
 

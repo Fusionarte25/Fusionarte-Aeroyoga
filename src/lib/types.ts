@@ -22,7 +22,7 @@ export interface Student {
 }
 
 export interface Booking {
-  id: string;
+  id: number; // Changed to number to match database SERIAL type
   student: Student;
   classes: AeroClass[];
   bookingDate: Date;

@@ -4,41 +4,41 @@ import * as db from '@/lib/data'
 import type { AeroClass, Student, Booking, ClassPack } from '@/lib/types'
 
 export async function fetchClasses() {
-  const allClasses = db.getClasses();
-  return allClasses;
+  const allClasses = await db.getClasses();
+  return JSON.parse(JSON.stringify(allClasses));
 }
 
 export async function getActiveBookingMonth() {
-    const activeMonth = db.getActiveBookingMonth();
+    const activeMonth = await db.getActiveBookingMonth();
     return activeMonth?.toISOString() ?? null;
 }
 
 export async function setActiveBookingMonth(year: number | null, month: number | null) {
-    const newActiveMonth = db.setActiveBookingMonth(year, month);
+    const newActiveMonth = await db.setActiveBookingMonth(year, month);
     return newActiveMonth?.toISOString() ?? null;
 }
 
 export async function createBooking(student: Student, selectedClasses: Pick<AeroClass, 'id'>[], packSize: number, price: number) {
   try {
-    const booking = db.addBooking(student, selectedClasses, packSize, price);
+    const booking = await db.addBooking(student, selectedClasses, packSize, price);
     return { success: true, booking: JSON.parse(JSON.stringify(booking)) };
   } catch (error) {
     return { success: false, error: (error as Error).message };
   }
 }
 
-export async function updateFullBooking(bookingId: string, updates: { student: Student, packSize: number, price: number, classIds: {id: string}[], paymentStatus: 'pending' | 'completed' }) {
+export async function updateFullBooking(bookingId: number, updates: { student: Student, packSize: number, price: number, classIds: {id: string}[], paymentStatus: 'pending' | 'completed' }) {
     try {
-        const updatedBooking = db.updateFullBooking(bookingId, updates);
+        const updatedBooking = await db.updateFullBooking(bookingId, updates);
         return { success: true, booking: JSON.parse(JSON.stringify(updatedBooking)) };
     } catch (error) {
         return { success: false, error: (error as Error).message };
     }
 }
 
-export async function updateBookingStatus(bookingId: string, status: 'pending' | 'completed') {
+export async function updateBookingStatus(bookingId: number, status: 'pending' | 'completed') {
     try {
-        const updatedBooking = db.updateBookingStatus(bookingId, status);
+        const updatedBooking = await db.updateBookingStatus(bookingId, status);
         return { success: true, booking: JSON.parse(JSON.stringify(updatedBooking)) };
     } catch (error) {
         return { success: false, error: (error as Error).message };
@@ -47,9 +47,12 @@ export async function updateBookingStatus(bookingId: string, status: 'pending' |
 
 
 export async function fetchAdminData() {
-    const bookings = db.getBookings();
-    const classesWithAttendees = db.getClassesWithAttendees();
-    const allClasses = db.getClasses();
+    const [bookings, classesWithAttendees, allClasses] = await Promise.all([
+        db.getBookings(),
+        db.getClassesWithAttendees(),
+        db.getClasses()
+    ]);
+
     return { 
         bookings: JSON.parse(JSON.stringify(bookings)), 
         classesWithAttendees: JSON.parse(JSON.stringify(classesWithAttendees)),
@@ -59,7 +62,7 @@ export async function fetchAdminData() {
 
 export async function addClass(classData: Omit<AeroClass, 'id' | 'bookedSpots' | 'date'> & { date: string }) {
     try {
-        const newClass = db.addClass(classData);
+        const newClass = await db.addClass(classData);
         return { success: true, class: JSON.parse(JSON.stringify(newClass)) };
     } catch (error) {
         return { success: false, error: (error as Error).message };
@@ -68,7 +71,7 @@ export async function addClass(classData: Omit<AeroClass, 'id' | 'bookedSpots' |
 
 export async function addRecurringClasses(data: any) {
     try {
-        const newClasses = db.addRecurringClasses(data);
+        const newClasses = await db.addRecurringClasses(data);
         return { success: true, classes: JSON.parse(JSON.stringify(newClasses)) };
     } catch (error) {
         return { success: false, error: (error as Error).message };
@@ -77,7 +80,7 @@ export async function addRecurringClasses(data: any) {
 
 export async function updateClass(classData: Omit<AeroClass, 'date'> & { date: string }) {
     try {
-        const updatedClass = db.updateClass(classData);
+        const updatedClass = await db.updateClass(classData);
         if (!updatedClass) throw new Error("Class not found");
         return { success: true, class: JSON.parse(JSON.stringify(updatedClass)) };
     } catch (error) {
@@ -87,7 +90,7 @@ export async function updateClass(classData: Omit<AeroClass, 'date'> & { date: s
 
 export async function deleteClass(classId: string) {
     try {
-        db.deleteClass(classId);
+        await db.deleteClass(classId);
         return { success: true };
     } catch (error) {
         return { success: false, error: (error as Error).message };
@@ -96,7 +99,7 @@ export async function deleteClass(classId: string) {
 
 export async function getTeacherStats(year: number, month: number) {
     try {
-        const stats = db.getTeacherStats(year, month);
+        const stats = await db.getTeacherStats(year, month);
         return { success: true, stats };
     } catch (error) {
         return { success: false, error: (error as Error).message, stats: {} };
@@ -131,7 +134,7 @@ function convertToCsv(data: any[], headers: Record<string, string>) {
 }
 
 export async function getStudentCsv() {
-    const bookings = db.getBookings().map(b => ({
+    const bookings = (await db.getBookings()).map(b => ({
         name: b.student.name,
         email: b.student.email,
         phone: b.student.phone,
@@ -155,7 +158,7 @@ export async function getStudentCsv() {
 }
 
 export async function getClassCsv() {
-    const classesWithAttendees = db.getClassesWithAttendees();
+    const classesWithAttendees = await db.getClassesWithAttendees();
     const flatData = classesWithAttendees
         .map(c => ({
             className: c.classDetails.name,
@@ -181,12 +184,12 @@ export async function getClassCsv() {
 
 // Custom Pack Price Actions
 export async function getCustomPackPrices() {
-    return db.getCustomPackPrices();
+    return await db.getCustomPackPrices();
 }
 
 export async function updateCustomPackPrices(prices: Record<string, number>) {
     try {
-        const newPrices = db.updateCustomPackPrices(prices);
+        const newPrices = await db.updateCustomPackPrices(prices);
         return { success: true, prices: newPrices };
     } catch (error) {
         return { success: false, error: (error as Error).message };
@@ -195,12 +198,12 @@ export async function updateCustomPackPrices(prices: Record<string, number>) {
 
 // Pack Management Actions
 export async function fetchPacks() {
-    return db.getClassPacks();
+    return await db.getClassPacks();
 }
 
 export async function addClassPack(packData: Omit<ClassPack, 'id'>) {
     try {
-        const newPack = db.addClassPack(packData);
+        const newPack = await db.addClassPack(packData);
         return { success: true, pack: JSON.parse(JSON.stringify(newPack)) };
     } catch (error) {
         return { success: false, error: (error as Error).message };
@@ -209,7 +212,7 @@ export async function addClassPack(packData: Omit<ClassPack, 'id'>) {
 
 export async function updateClassPack(packData: ClassPack) {
     try {
-        const updatedPack = db.updateClassPack(packData);
+        const updatedPack = await db.updateClassPack(packData);
         return { success: true, pack: JSON.parse(JSON.stringify(updatedPack)) };
     } catch (error) {
         return { success: false, error: (error as Error).message };
@@ -218,7 +221,7 @@ export async function updateClassPack(packData: ClassPack) {
 
 export async function deleteClassPack(packId: string) {
     try {
-        db.deleteClassPack(packId);
+        await db.deleteClassPack(packId);
         return { success: true };
     } catch (error) {
         return { success: false, error: (error as Error).message };
