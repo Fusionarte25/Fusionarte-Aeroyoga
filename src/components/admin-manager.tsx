@@ -333,7 +333,14 @@ function PackForm({ pack, onSave, onCancel }: { pack: ClassPack | null, onSave: 
     const [formData, setFormData] = useState({ name: pack?.name || '', classes: pack?.classes || 1, price: pack?.price || 0 });
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => { const { name, value, type } = e.target; setFormData(prev => ({ ...prev, [name]: type === 'number' ? parseFloat(value) : value })); };
     const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave(formData); };
-    return (<form onSubmit={handleSubmit} className="space-y-4 pt-4"><div className="space-y-2"><Label htmlFor="name">Nombre del Bono</Label><Input id="name" name="name" value={formData.name} onChange={handleChange} required/></div><div className="grid grid-cols-1 sm:grid-cols-2 gap-4"><div className="space-y-2"><Label htmlFor="classes">Nº de Clases</Label><Input id="classes" name="classes" type="number" value={formData.classes} onChange={handleChange} required/></div><div className="space-y-2"><Label htmlFor="price">Precio (€)</Label><Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} required/></div></div><DialogFooter><Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button><Button type="submit">Guardar Bono</Button></DialogFooter></form>)
+    return (<form onSubmit={handleSubmit} className="space-y-4 pt-4">
+        <div className="space-y-2"><Label htmlFor="name">Nombre del Bono</Label><Input id="name" name="name" value={formData.name} onChange={handleChange} required/></div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2"><Label htmlFor="classes">Nº de Clases</Label><Input id="classes" name="classes" type="number" value={formData.classes} onChange={handleChange} required disabled={!!pack} /></div>
+            <div className="space-y-2"><Label htmlFor="price">Precio (€)</Label><Input id="price" name="price" type="number" value={formData.price} onChange={handleChange} required/></div>
+        </div>
+        <DialogFooter><Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button><Button type="submit">Guardar Bono</Button></DialogFooter>
+    </form>)
 }
 
 function MonthNavigator({ date, onDateChange }: { date: Date, onDateChange: (newDate: Date) => void }) {

@@ -424,27 +424,16 @@ export async function addClassPack(packData: Omit<ClassPack, 'id'>): Promise<Cla
 }
 
 export async function updateClassPack(packData: ClassPack): Promise<ClassPack> {
-    const { id, name, classes, price } = packData;
-    const newId = classes.toString();
-    const client = await pool.connect();
-    try {
-        await client.query('BEGIN');
-        if (id !== newId) {
-            await client.query('DELETE FROM class_packs WHERE id = $1', [id]);
-            await client.query('INSERT INTO class_packs (id, name, classes, price) VALUES ($1, $2, $3, $4)', [newId, name, classes, price]);
-        } else {
-             await client.query('UPDATE class_packs SET name = $1, price = $2 WHERE id = $3', [name, price, id]);
-        }
-        await client.query('COMMIT');
-        const finalResult = await pool.query('SELECT * FROM class_packs WHERE id = $1', [newId]);
-        const row = finalResult.rows[0];
-        return { id: row.id, name: row.name, classes: parseInt(row.classes), price: parseFloat(row.price) };
-    } catch(e) {
-        await client.query('ROLLBACK');
-        throw e;
-    } finally {
-        client.release();
+    const { id, name, price } = packData;
+    const result = await pool.query(
+        'UPDATE class_packs SET name = $1, price = $2 WHERE id = $3 RETURNING *',
+        [name, price, id]
+    );
+     if (result.rows.length === 0) {
+        throw new Error(`Bono con id ${id} no encontrado.`);
     }
+    const row = result.rows[0];
+    return { ...row, classes: parseInt(row.classes), price: parseFloat(row.price) };
 }
 
 export async function deleteClassPack(packId: string): Promise<boolean> {
