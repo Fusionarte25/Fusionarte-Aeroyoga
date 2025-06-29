@@ -1,6 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster"
+import { Toaster } from "@/components/ui/toaster";
+import { ensureDatabaseInitialized } from '@/lib/db-init';
+
+// Run the database initialization check when the app starts on the server.
+await ensureDatabaseInitialized();
 
 export const metadata: Metadata = {
   title: 'Fusionarte',
