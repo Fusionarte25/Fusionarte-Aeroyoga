@@ -30,14 +30,19 @@ const mapToBooking = (row: any, classes: AeroClass[]): Booking => ({
 // --- Service Functions ---
 
 export async function getActiveBookingMonth(): Promise<Date | null> {
-  const result = await pool.query("SELECT value FROM settings WHERE key = 'activeBookingMonth'");
-  if (result.rows.length === 0 || !result.rows[0].value) {
-    // Set a default if not present in DB for first-time setup
-    const defaultMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
-    await setActiveBookingMonth(defaultMonth.getFullYear(), defaultMonth.getMonth());
-    return defaultMonth;
+  try {
+    const result = await pool.query("SELECT value FROM settings WHERE key = 'activeBookingMonth'");
+    if (result.rows.length === 0 || !result.rows[0].value) {
+      // If no setting found, return a sensible default but don't write to DB.
+      // The setup script is responsible for the initial state.
+      const defaultMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      return defaultMonth;
+    }
+    return new Date(result.rows[0].value);
+  } catch (error) {
+      console.error("Could not fetch active booking month, returning default. Please run DB setup script.", error);
+      return new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   }
-  return new Date(result.rows[0].value);
 }
 
 export async function setActiveBookingMonth(year: number | null, month: number | null): Promise<Date | null> {
@@ -61,27 +66,37 @@ export async function setActiveBookingMonth(year: number | null, month: number |
 }
 
 export async function getClasses(): Promise<AeroClass[]> {
-  const result = await pool.query('SELECT * FROM classes ORDER BY date, time ASC');
-  return result.rows.map(mapToAeroClass);
+  try {
+    const result = await pool.query('SELECT * FROM classes ORDER BY date, time ASC');
+    return result.rows.map(mapToAeroClass);
+  } catch (error) {
+    console.error("Could not fetch classes. Please run DB setup script.", error);
+    return [];
+  }
 }
 
 export async function getBookings(): Promise<Booking[]> {
-  const bookingResult = await pool.query('SELECT * FROM bookings ORDER BY booking_date DESC');
-  if (bookingResult.rows.length === 0) return [];
+  try {
+    const bookingResult = await pool.query('SELECT * FROM bookings ORDER BY booking_date DESC');
+    if (bookingResult.rows.length === 0) return [];
 
-  const allClassIds = [...new Set(bookingResult.rows.flatMap(b => b.class_ids))];
-  
-  if (allClassIds.length === 0) {
-      return bookingResult.rows.map(row => mapToBooking(row, []));
+    const allClassIds = [...new Set(bookingResult.rows.flatMap(b => b.class_ids))];
+    
+    if (allClassIds.length === 0) {
+        return bookingResult.rows.map(row => mapToBooking(row, []));
+    }
+
+    const classResult = await pool.query('SELECT * FROM classes WHERE id = ANY($1::text[])', [allClassIds]);
+    const classesById = new Map(classResult.rows.map(mapToAeroClass).map(c => [c.id, c]));
+
+    return bookingResult.rows.map(row => {
+      const bookingClasses = row.class_ids.map((id: string) => classesById.get(id)).filter(Boolean) as AeroClass[];
+      return mapToBooking(row, bookingClasses);
+    });
+  } catch (error) {
+    console.error("Could not fetch bookings. Please run DB setup script.", error);
+    return [];
   }
-
-  const classResult = await pool.query('SELECT * FROM classes WHERE id = ANY($1::text[])', [allClassIds]);
-  const classesById = new Map(classResult.rows.map(mapToAeroClass).map(c => [c.id, c]));
-
-  return bookingResult.rows.map(row => {
-    const bookingClasses = row.class_ids.map((id: string) => classesById.get(id)).filter(Boolean) as AeroClass[];
-    return mapToBooking(row, bookingClasses);
-  });
 }
 
 export async function addBooking(student: Student, selectedClasses: Pick<AeroClass, 'id'>[], packSize: number, price: number): Promise<Booking> {
@@ -322,30 +337,40 @@ export async function deleteClass(classId: string): Promise<boolean> {
 }
 
 export async function getTeacherStats(year: number, month: number): Promise<Record<string, number>> {
-    const result = await pool.query(
-        `SELECT teacher, COUNT(*) as class_count
-         FROM classes
-         WHERE teacher IS NOT NULL AND EXTRACT(YEAR FROM date) = $1 AND EXTRACT(MONTH FROM date) = $2
-         GROUP BY teacher`,
-        [year, month + 1] // DB month is 1-12
-    );
-    
-    const stats: Record<string, number> = {};
-    result.rows.forEach(row => {
-        stats[row.teacher] = parseInt(row.class_count, 10);
-    });
-    return stats;
+    try {
+        const result = await pool.query(
+            `SELECT teacher, COUNT(*) as class_count
+            FROM classes
+            WHERE teacher IS NOT NULL AND EXTRACT(YEAR FROM date) = $1 AND EXTRACT(MONTH FROM date) = $2
+            GROUP BY teacher`,
+            [year, month + 1] // DB month is 1-12
+        );
+        
+        const stats: Record<string, number> = {};
+        result.rows.forEach(row => {
+            stats[row.teacher] = parseInt(row.class_count, 10);
+        });
+        return stats;
+    } catch(error) {
+        console.error("Could not fetch teacher stats. Please run DB setup script.", error);
+        return {};
+    }
 }
 
 
 // Custom Pack Price Management
 export async function getCustomPackPrices(): Promise<Record<string, number>> {
-    const result = await pool.query('SELECT * FROM custom_pack_prices ORDER BY num_classes ASC');
-    const prices: Record<string, number> = {};
-    result.rows.forEach(row => {
-        prices[row.num_classes.toString()] = parseFloat(row.price);
-    });
-    return prices;
+    try {
+        const result = await pool.query('SELECT * FROM custom_pack_prices ORDER BY num_classes ASC');
+        const prices: Record<string, number> = {};
+        result.rows.forEach(row => {
+            prices[row.num_classes.toString()] = parseFloat(row.price);
+        });
+        return prices;
+    } catch (error) {
+        console.error("Could not fetch custom pack prices. Please run DB setup script.", error);
+        return {};
+    }
 }
 
 export async function updateCustomPackPrices(prices: Record<string, number>): Promise<Record<string, number>> {
@@ -374,12 +399,17 @@ export async function updateCustomPackPrices(prices: Record<string, number>): Pr
 
 // Pack Management
 export async function getClassPacks(): Promise<ClassPack[]> {
-    const result = await pool.query('SELECT * FROM class_packs ORDER BY classes ASC');
-    return result.rows.map(row => ({
-        ...row,
-        classes: parseInt(row.classes, 10),
-        price: parseFloat(row.price),
-    }));
+    try {
+        const result = await pool.query('SELECT * FROM class_packs ORDER BY classes ASC');
+        return result.rows.map(row => ({
+            ...row,
+            classes: parseInt(row.classes, 10),
+            price: parseFloat(row.price),
+        }));
+    } catch (error) {
+        console.error("Could not fetch class packs. Please run DB setup script.", error);
+        return [];
+    }
 }
 
 export async function addClassPack(packData: Omit<ClassPack, 'id'>): Promise<ClassPack> {
