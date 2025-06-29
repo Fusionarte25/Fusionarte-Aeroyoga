@@ -83,19 +83,33 @@ function CustomDay(props: DayProps & {
                       disabled={isDisabled}
                       onClick={() => onSelectClass(cls)}
                       className={cn(
-                        "w-full text-left p-1.5 rounded-md text-xs transition-all duration-200",
+                        "w-full text-left p-2 rounded-md transition-all duration-200",
                         "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1",
-                        isSelected ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-primary/10",
+                        isSelected
+                            ? "bg-primary text-primary-foreground shadow-md"
+                            : "bg-muted hover:bg-primary/10",
                         isDisabled && "opacity-50 cursor-not-allowed bg-secondary"
                       )}
                     >
-                      <p className="font-semibold">{cls.name}</p>
                       <div className="flex justify-between items-center">
-                        <p>{cls.time}</p>
-                        <div className="flex items-center gap-1">
-                          <p>{isFull ? "Completo" : `${remaining} libres`}</p>
-                          {isSelected && <Check className="w-3 h-3" />}
-                        </div>
+                          <p className="font-semibold truncate">{cls.name}</p>
+                          {isSelected && <CheckCircle2 className="h-4 w-4 shrink-0" />}
+                      </div>
+                      <div className={cn(
+                          "flex justify-between items-center mt-1.5 text-xs",
+                          isSelected ? "text-primary-foreground/90" : "text-muted-foreground"
+                      )}>
+                          <div className="flex items-center gap-1">
+                              <Clock className="h-3 w-3 shrink-0" />
+                              <span>{cls.time.slice(0, 5)}</span>
+                          </div>
+                          <div className={cn(
+                              "flex items-center gap-1 font-medium",
+                              !isSelected && (isFull ? "text-destructive" : "text-green-600 dark:text-green-500")
+                          )}>
+                              <Users className="h-3 w-3 shrink-0" />
+                              <span>{isFull ? "Completo" : `${remaining} libres`}</span>
+                          </div>
                       </div>
                     </button>
                   );
@@ -140,7 +154,7 @@ function SuccessScreen({ booking, onNewBooking }: { booking: Booking; onNewBooki
     
     let yPos = 116;
     booking.classes.forEach(cls => {
-      const classLine = `· ${cls.name} - ${new Date(cls.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} a las ${cls.time}`;
+      const classLine = `· ${cls.name} - ${new Date(cls.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} a las ${cls.time.slice(0, 5)}`;
       doc.text(classLine, 15, yPos);
       yPos += 7;
     });
@@ -172,7 +186,7 @@ function SuccessScreen({ booking, onNewBooking }: { booking: Booking; onNewBooki
                           <li key={cls.id} className="flex items-center justify-between bg-secondary p-3 rounded-lg">
                               <div>
                                   <p className="font-semibold">{cls.name} - {new Date(cls.date).toLocaleDateString('es-ES', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-                                  <p className="text-sm text-muted-foreground">a las {cls.time} con {cls.teacher}</p>
+                                  <p className="text-sm text-muted-foreground">a las {cls.time.slice(0, 5)} con {cls.teacher}</p>
                               </div>
                               <CalendarCheck className="h-5 w-5 text-primary"/>
                           </li>
@@ -318,7 +332,7 @@ export function AeroClassManager() {
             const [name, day, time, teacher] = key.split('|');
             scheduleOptions.push({
                 id: key,
-                label: `${name} - ${day} ${time} (con ${teacher}) - ${classList.length} clases`,
+                label: `${name} - ${day} ${time.slice(0, 5)} (con ${teacher}) - ${classList.length} clases`,
                 classes: classList,
             });
         }
@@ -616,7 +630,7 @@ export function AeroClassManager() {
                             <li key={cls.id} className="flex items-center justify-between bg-secondary p-3 rounded-lg animate-in fade-in-20">
                                 <div className="pr-4">
                                     <p className="font-semibold">{cls.name} - {cls.date.toLocaleDateString('es-ES', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
-                                    <p className="text-sm text-muted-foreground">a las {cls.time}</p>
+                                    <p className="text-sm text-muted-foreground">a las {cls.time.slice(0, 5)}</p>
                                 </div>
                                 {selectedPackType !== 'fixed_monthly' && (
                                     <Button variant="ghost" size="icon" onClick={() => handleRemoveClass(cls.id)} className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-full h-8 w-8 flex-shrink-0" disabled={bookingState === 'submitting'}>

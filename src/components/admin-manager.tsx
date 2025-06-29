@@ -177,7 +177,7 @@ function EditBookingForm({ booking, allClasses, onSave, onCancel }: { booking: B
             </div>
             <div className="space-y-4 border p-4 rounded-md">
                 <h4 className="font-semibold text-lg">Clases Seleccionadas</h4>
-                <div className="space-y-3 max-h-[300px] overflow-y-auto p-1">{Array.from({ length: packSize }).map((_, index) => (<div key={index} className="space-y-2"><Label>Clase {index + 1}</Label><Select onValueChange={(newId) => handleClassChange(index, newId)} defaultValue={selectedClassIds[index]}><SelectTrigger><SelectValue placeholder="Selecciona una clase" /></SelectTrigger><SelectContent>{availableClasses.map(cls => (<SelectItem key={cls.id} value={cls.id} disabled={selectedClassIds.includes(cls.id) && cls.id !== selectedClassIds[index]}>{cls.name} - {new Date(cls.date).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit'})} {cls.time} ({cls.totalSpots - cls.bookedSpots} libres)</SelectItem>))}</SelectContent></Select></div>))}</div>
+                <div className="space-y-3 max-h-[300px] overflow-y-auto p-1">{Array.from({ length: packSize }).map((_, index) => (<div key={index} className="space-y-2"><Label>Clase {index + 1}</Label><Select onValueChange={(newId) => handleClassChange(index, newId)} defaultValue={selectedClassIds[index]}><SelectTrigger><SelectValue placeholder="Selecciona una clase" /></SelectTrigger><SelectContent>{availableClasses.map(cls => (<SelectItem key={cls.id} value={cls.id} disabled={selectedClassIds.includes(cls.id) && cls.id !== selectedClassIds[index]}>{cls.name} - {new Date(cls.date).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit'})} {cls.time.slice(0, 5)} ({cls.totalSpots - cls.bookedSpots} libres)</SelectItem>))}</SelectContent></Select></div>))}</div>
             </div>
             <DialogFooter><Button type="button" variant="ghost" onClick={onCancel}>Cancelar</Button><Button type="submit">Guardar Cambios</Button></DialogFooter>
         </form>
@@ -353,21 +353,12 @@ function PackForm({ pack, onSave, onCancel }: { pack: ClassPack | null, onSave: 
 
     const handleSubmit = (e: React.FormEvent) => { 
         e.preventDefault(); 
-        
         let dataToSave;
         if (pack) { // Editing
             dataToSave = { ...formData, id: pack.id };
         } else { // Creating
-            const id = formData.type === 'standard'
-                ? formData.classes.toString()
-                : formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-            if (!id) {
-                alert("El nombre del bono fijo no puede estar vacío y debe generar un ID válido.");
-                return;
-            }
-            dataToSave = { ...formData, id };
+             dataToSave = { ...formData };
         }
-
         onSave(dataToSave);
     };
     
@@ -391,7 +382,7 @@ function PackForm({ pack, onSave, onCancel }: { pack: ClassPack | null, onSave: 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
                 <Label htmlFor="classes">Nº de Clases</Label>
-                <Input id="classes" name="classes" type="number" value={formData.classes} onChange={handleChange} required disabled={isEditing || isFixedType} />
+                <Input id="classes" name="classes" type="number" value={formData.classes} onChange={handleChange} required disabled={isFixedType} />
                 {isFixedType && <p className="text-xs text-muted-foreground">No aplica para bonos fijos mensuales.</p>}
             </div>
             <div className="space-y-2">
@@ -566,7 +557,7 @@ function AdminDashboard() {
                                                 <TableCell>{booking.packSize} clases</TableCell>
                                                 <TableCell>{booking.price}€</TableCell>
                                                 <TableCell><Select value={booking.paymentStatus} onValueChange={(newStatus) => handleBookingStatusChange(booking.id, newStatus as 'pending'|'completed')}><SelectTrigger className={cn("min-w-[120px]", booking.paymentStatus === 'pending' && 'text-orange-500', booking.paymentStatus === 'completed' && 'text-green-600')}><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pending">Pendiente</SelectItem><SelectItem value="completed">Realizado</SelectItem></SelectContent></Select></TableCell>
-                                                <TableCell><ul className="list-disc list-inside text-sm whitespace-nowrap">{booking.classes.map(cls => (<li key={cls.id}>{cls.name} - {new Date(cls.date).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit'})} {cls.time}</li>))}</ul></TableCell>
+                                                <TableCell><ul className="list-disc list-inside text-sm whitespace-nowrap">{booking.classes.map(cls => (<li key={cls.id}>{cls.name} - {new Date(cls.date).toLocaleDateString('es-ES', {day: '2-digit', month: '2-digit'})} {cls.time.slice(0, 5)}</li>))}</ul></TableCell>
                                                 <TableCell className="text-right"><Button variant="outline" size="icon" onClick={() => setEditingBooking(booking)}><Edit className="h-4 w-4" /></Button></TableCell>
                                             </TableRow>
                                         )) : <TableRow><TableCell colSpan={7} className="text-center h-24">No hay reservas para el mes seleccionado.</TableCell></TableRow>}
@@ -581,7 +572,7 @@ function AdminDashboard() {
                     </Card>
                 </TabsContent>
                 <TabsContent value="classes">
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{filteredClasses.length > 0 ? filteredClasses.map(({ classDetails, attendees }) => (<Card key={classDetails.id}><CardHeader><CardTitle>{classDetails.name}</CardTitle><CardDescription>{new Date(classDetails.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} a las {classDetails.time}<br/><span className="font-semibold">Profesora: {classDetails.teacher}</span> | Plazas: {classDetails.bookedSpots} / {classDetails.totalSpots}</CardDescription></CardHeader><CardContent><h4 className="font-semibold mb-2">Asistentes:</h4>{attendees.length > 0 ? (<ul className="list-disc list-inside text-sm">{attendees.map((attendee, index) => (<li key={`${classDetails.id}-${attendee.email}-${index}`}>{attendee.name}</li>))}</ul>) : (<p className="text-sm text-muted-foreground">No hay alumnas inscritas.</p>)}</CardContent></Card>)) : (<div className="text-center text-muted-foreground py-10 col-span-full"><p>No hay clases programadas para el mes seleccionado.</p></div>)}</div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">{filteredClasses.length > 0 ? filteredClasses.map(({ classDetails, attendees }) => (<Card key={classDetails.id}><CardHeader><CardTitle>{classDetails.name}</CardTitle><CardDescription>{new Date(classDetails.date).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })} a las {classDetails.time.slice(0, 5)}<br/><span className="font-semibold">Profesora: {classDetails.teacher}</span> | Plazas: {classDetails.bookedSpots} / {classDetails.totalSpots}</CardDescription></CardHeader><CardContent><h4 className="font-semibold mb-2">Asistentes:</h4>{attendees.length > 0 ? (<ul className="list-disc list-inside text-sm">{attendees.map((attendee, index) => (<li key={`${classDetails.id}-${attendee.email}-${index}`}>{attendee.name}</li>))}</ul>) : (<p className="text-sm text-muted-foreground">No hay alumnas inscritas.</p>)}</CardContent></Card>)) : (<div className="text-center text-muted-foreground py-10 col-span-full"><p>No hay clases programadas para el mes seleccionado.</p></div>)}</div>
                 </TabsContent>
                 <TabsContent value="manage-classes">
                     <Card>
@@ -592,7 +583,7 @@ function AdminDashboard() {
                                     <TableHeader><TableRow><TableHead>Clase</TableHead><TableHead>Fecha y Hora</TableHead><TableHead>Profesora</TableHead><TableHead>Plazas</TableHead><TableHead className="text-right">Acciones</TableHead></TableRow></TableHeader>
                                     <TableBody>
                                         {allClasses.filter(c => { const d = new Date(c.date); return d.getFullYear() === displayDate.getFullYear() && d.getMonth() === displayDate.getMonth(); }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).map((classDetails) => (
-                                            <TableRow key={classDetails.id}><TableCell className="font-medium whitespace-nowrap">{classDetails.name}</TableCell><TableCell className="whitespace-nowrap">{new Date(classDetails.date).toLocaleDateString('es-ES')} - {classDetails.time}</TableCell><TableCell>{classDetails.teacher || 'N/A'}</TableCell><TableCell>{classDetails.bookedSpots} / {classDetails.totalSpots}</TableCell><TableCell className="text-right space-x-2"><Button variant="outline" size="icon" onClick={() => { setEditingClass(classDetails); setIsClassModalOpen(true);}}><Edit className="h-4 w-4" /></Button><Button variant="destructive" size="icon" onClick={() => setClassToDelete(classDetails)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>
+                                            <TableRow key={classDetails.id}><TableCell className="font-medium whitespace-nowrap">{classDetails.name}</TableCell><TableCell className="whitespace-nowrap">{new Date(classDetails.date).toLocaleDateString('es-ES')} - {classDetails.time.slice(0, 5)}</TableCell><TableCell>{classDetails.teacher || 'N/A'}</TableCell><TableCell>{classDetails.bookedSpots} / {classDetails.totalSpots}</TableCell><TableCell className="text-right space-x-2"><Button variant="outline" size="icon" onClick={() => { setEditingClass(classDetails); setIsClassModalOpen(true);}}><Edit className="h-4 w-4" /></Button><Button variant="destructive" size="icon" onClick={() => setClassToDelete(classDetails)}><Trash2 className="h-4 w-4" /></Button></TableCell></TableRow>
                                         ))}
                                     </TableBody>
                                 </Table>

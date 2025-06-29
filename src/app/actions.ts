@@ -102,6 +102,7 @@ export async function getTeacherStats(year: number, month: number) {
         const stats = await db.getTeacherStats(year, month);
         return { success: true, stats };
     } catch (error) {
+        console.error("Could not fetch teacher stats. This is likely a DB connection/setup issue.", error);
         return { success: false, error: (error as Error).message, stats: {} };
     }
 }
@@ -117,7 +118,7 @@ function convertToCsv(data: any[], headers: Record<string, string>) {
                 cell = cell.toLocaleString('es-ES');
             } else if (Array.isArray(cell)) {
                  if (key === 'classes') {
-                    cell = cell.map(item => `${item.name} (${new Date(item.date).toLocaleDateString('es-ES')} ${item.time})`).join('; ');
+                    cell = cell.map(item => `${item.name} (${new Date(item.date).toLocaleDateString('es-ES')} ${item.time ? item.time.slice(0, 5) : ''})`).join('; ');
                  } else if (key === 'attendees') {
                     cell = cell.map(item => item.name).join('; ');
                  } else {
@@ -163,7 +164,7 @@ export async function getClassCsv() {
         .map(c => ({
             className: c.classDetails.name,
             date: new Date(c.classDetails.date),
-            time: c.classDetails.time,
+            time: c.classDetails.time ? c.classDetails.time.slice(0, 5) : '',
             teacher: c.classDetails.teacher,
             attendees: c.attendees,
             booked: c.classDetails.bookedSpots,
@@ -192,6 +193,7 @@ export async function updateCustomPackPrices(prices: Record<string, number>) {
         const newPrices = await db.updateCustomPackPrices(prices);
         return { success: true, prices: newPrices };
     } catch (error) {
+        console.error('Error in updateCustomPackPrices. This is likely a DB connection/setup issue.', error);
         return { success: false, error: (error as Error).message };
     }
 }
@@ -206,6 +208,7 @@ export async function addClassPack(packData: Omit<ClassPack, 'id'>) {
         const newPack = await db.addClassPack(packData);
         return { success: true, pack: JSON.parse(JSON.stringify(newPack)) };
     } catch (error) {
+        console.error('Error in addClassPack. This is likely a DB connection/setup issue.', error);
         return { success: false, error: (error as Error).message };
     }
 }
@@ -215,6 +218,7 @@ export async function updateClassPack(packData: ClassPack) {
         const updatedPack = await db.updateClassPack(packData);
         return { success: true, pack: JSON.parse(JSON.stringify(updatedPack)) };
     } catch (error) {
+        console.error('Error in updateClassPack. This is likely a DB connection/setup issue.', error);
         return { success: false, error: (error as Error).message };
     }
 }
@@ -224,6 +228,7 @@ export async function deleteClassPack(packId: string) {
         await db.deleteClassPack(packId);
         return { success: true };
     } catch (error) {
+        console.error('Error in deleteClassPack. This is likely a DB connection/setup issue.', error);
         return { success: false, error: (error as Error).message };
     }
 }
