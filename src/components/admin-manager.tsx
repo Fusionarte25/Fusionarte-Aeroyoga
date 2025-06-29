@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Download, Lock, LogIn, PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight, BarChart2, DollarSign, Settings, Loader2 } from 'lucide-react';
+import { Download, Lock, LogIn, PlusCircle, Edit, Trash2, ChevronLeft, ChevronRight, BarChart2, DollarSign, Settings, Loader2, Clock } from 'lucide-react';
 import { addClass, addRecurringClasses, deleteClass, fetchAdminData, getActiveBookingMonth, getClassCsv, getStudentCsv, setActiveBookingMonth, updateClass, updateFullBooking, getTeacherStats, fetchPacks, updateBookingStatus, addClassPack, updateClassPack, deleteClassPack, getCustomPackPrices, updateCustomPackPrices } from '@/app/actions';
 import type { AeroClass, Booking, ClassPack } from '@/lib/types';
 import { Button } from '@/components/ui/button';
@@ -229,9 +229,26 @@ function ManagePacksTab({ classPacks, onPacksUpdate }: { classPacks: ClassPack[]
         getCustomPackPrices().then(prices => setCustomPrices(prices || {}));
     }, []);
 
-    const handleSavePack = async (packData: any) => {
+    const handleSavePack = async (packDataFromForm: any) => {
         const isEditing = !!editingPack;
-        const result = isEditing ? await updateClassPack({ ...packData, id: editingPack!.id }) : await addClassPack(packData);
+        
+        let packDataWithId = { ...packDataFromForm };
+
+        if (isEditing) {
+            packDataWithId.id = editingPack!.id;
+        } else {
+            if (packDataFromForm.type === 'standard') {
+                packDataWithId.id = packDataFromForm.classes.toString();
+            } else {
+                const nameSlug = packDataFromForm.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                packDataWithId.id = `${packDataFromForm.type}-${nameSlug}-${Date.now()}`;
+            }
+        }
+        
+        const result = isEditing 
+            ? await updateClassPack(packDataWithId) 
+            : await addClassPack(packDataWithId);
+
         if (result.success) {
             toast({ title: "¡Éxito!", description: `Bono ${isEditing ? 'actualizado' : 'creado'} correctamente.` });
             setIsPackModalOpen(false);
@@ -353,13 +370,7 @@ function PackForm({ pack, onSave, onCancel }: { pack: ClassPack | null, onSave: 
 
     const handleSubmit = (e: React.FormEvent) => { 
         e.preventDefault(); 
-        let dataToSave;
-        if (pack) { // Editing
-            dataToSave = { ...formData, id: pack.id };
-        } else { // Creating
-             dataToSave = { ...formData };
-        }
-        onSave(dataToSave);
+        onSave(formData);
     };
     
     const isEditing = !!pack;

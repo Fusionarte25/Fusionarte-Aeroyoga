@@ -203,7 +203,7 @@ export async function fetchPacks() {
     return await db.getClassPacks();
 }
 
-export async function addClassPack(packData: Omit<ClassPack, 'id'>) {
+export async function addClassPack(packData: ClassPack) {
     try {
         const newPack = await db.addClassPack(packData);
         return { success: true, pack: JSON.parse(JSON.stringify(newPack)) };

@@ -433,11 +433,11 @@ export async function getClassPacks(): Promise<ClassPack[]> {
     }
 }
 
-export async function addClassPack(packData: Omit<ClassPack, 'id'> & { id: string }): Promise<ClassPack> {
+export async function addClassPack(packData: ClassPack): Promise<ClassPack> {
     try {
       const { id, name, classes, price, type } = packData;
       const result = await pool.query(
-          'INSERT INTO class_packs (id, name, classes, price, type) VALUES ($1, $2, $3, $4, $5) ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name, price=EXCLUDED.price, type=EXCLUDED.type RETURNING *',
+          'INSERT INTO class_packs (id, name, classes, price, type) VALUES ($1, $2, $3, $4, $5) RETURNING *',
           [id, name, classes, price, type]
       );
       const row = result.rows[0];
